@@ -92,10 +92,23 @@ async def test_unlink_not_linked(run):
     assert (await run.ok("unlink_account"))["status"] == "not_linked"
 
 
-async def test_account_status_from_api(run, api_mock, signed_in):
-    api_mock.get(f"{V1}/account/status").respond(200, json=fixture("account_status.json"))
+async def test_account_status_signed_in(run, api_mock, signed_in):
+    route = api_mock.get(f"{V1}/account/status").respond(200, json=fixture("account_status_signed_in.json"))
     out = await run.ok("account_status")
-    assert out["signed_in"] and out["plan"] == "free" and out["daily_remaining"] == 4
+    assert route.calls[0].request.headers["Authorization"] == f"Bearer {TOKEN}"
+    assert out["signed_in"] and out["plan"] == "free" and out["daily_remaining"] == 9
+    assert out["token"]["scopes"] == ["catalog:read", "download"]
+    assert out["message"] == "Signed in as example-user (free plan). 9 of 10 downloads left today, 29 of 30 this week."
+    assert TOKEN not in json.dumps(out)
+
+
+async def test_account_status_signed_out(run, api_mock):
+    route = api_mock.get(f"{V1}/account/status").respond(200, json=fixture("account_status_signed_out.json"))
+    out = await run.ok("account_status")
+    assert "Authorization" not in route.calls[0].request.headers
+    assert out["signed_in"] is False and out["sign_up_url"] and out["plans_url"]
+    assert out["daily_limit"] == 5 and out["weekly_limit"] == 10
+    assert "5 of 5 downloads left today" in out["message"]
 
 
 async def test_account_status_fallback_until_route_exists(run, api_mock, signed_in):

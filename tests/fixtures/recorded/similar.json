@@ -1,0 +1,59 @@
+{
+  "items": [
+    {
+      "id": 47,
+      "uuid": "d9607c1f-081a-4945-9b32-1d7188356b06",
+      "slug": "socket-tool",
+      "title": "Socket tool",
+      "thumbnail_url": "https://api.example.test/files/0a573f32-26e9-4ebf-aac5-6cc127f1ea5e.png",
+      "creator": {
+        "username": "example-user-2",
+        "display_name": "Example User"
+      },
+      "license_name": null,
+      "bbox": {
+        "x": null,
+        "y": null,
+        "z": null,
+        "source": null
+      },
+      "has_printable": false,
+      "printable_types": [],
+      "total_size_bytes": null,
+      "like_count": 0,
+      "download_count": 2,
+      "print_count": 0,
+      "visibility": "public",
+      "is_mature": false,
+      "page_url": "https://example.test/models/socket-tool-47"
+    },
+    {
+      "id": 121,
+      "uuid": "d8a0e347-dc18-472a-8ca8-c84e707a5d12",
+      "slug": "iso-4762-m3x8",
+      "title": "ISO 4762 M3x8",
+      "thumbnail_url": "https://api.example.test/files/placeholder.png",
+      "creator": {
+        "username": "example-user",
+        "display_name": "Example User"
+      },
+      "license_name": "CC-BY-4.0",
+      "bbox": {
+        "x": null,
+        "y": null,
+        "z": null,
+        "source": null
+      },
+      "has_printable": false,
+      "printable_types": [],
+      "total_size_bytes": 7,
+      "like_count": 0,
+      "download_count": 0,
+      "print_count": 0,
+      "visibility": "public",
+      "is_mature": false,
+      "page_url": "https://example.test/models/iso-4762-m3x8-121"
+    }
+  ],
+  "limit": 2
+}

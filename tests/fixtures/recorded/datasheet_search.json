@@ -1,0 +1,125 @@
+{
+  "model_id": 17,
+  "model_url": "https://example.test/m/485bfaea-e88d-41d9-bfa4-fa2693df2042",
+  "q": "gain",
+  "hits": [
+    {
+      "datasheet_id": 1,
+      "file_name": "example-datasheet.pdf",
+      "page": 1,
+      "untrusted_text": "Example text written by a person, mentioning M3 mounting holes.",
+      "match_count": 4,
+      "datasheet_url": "https://example.test/models/ina849-17/datasheets/1",
+      "pdf_url": "https://api.example.test/files/view"
+    },
+    {
+      "datasheet_id": 1,
+      "file_name": "example-datasheet.pdf",
+      "page": 3,
+      "untrusted_text": "Example text written by a person, mentioning M3 mounting holes.",
+      "match_count": 6,
+      "datasheet_url": "https://example.test/models/ina849-17/datasheets/1",
+      "pdf_url": "https://api.example.test/files/view"
+    },
+    {
+      "datasheet_id": 1,
+      "file_name": "example-datasheet.pdf",
+      "page": 4,
+      "untrusted_text": "Example text written by a person, mentioning M3 mounting holes.",
+      "match_count": 5,
+      "datasheet_url": "https://example.test/models/ina849-17/datasheets/1",
+      "pdf_url": "https://api.example.test/files/view"
+    },
+    {
+      "datasheet_id": 1,
+      "file_name": "example-datasheet.pdf",
+      "page": 6,
+      "untrusted_text": "Example text written by a person, mentioning M3 mounting holes.",
+      "match_count": 6,
+      "datasheet_url": "https://example.test/models/ina849-17/datasheets/1",
+      "pdf_url": "https://api.example.test/files/view"
+    },
+    {
+      "datasheet_id": 1,
+      "file_name": "example-datasheet.pdf",
+      "page": 7,
+      "untrusted_text": "Example text written by a person, mentioning M3 mounting holes.",
+      "match_count": 5,
+      "datasheet_url": "https://example.test/models/ina849-17/datasheets/1",
+      "pdf_url": "https://api.example.test/files/view"
+    },
+    {
+      "datasheet_id": 1,
+      "file_name": "example-datasheet.pdf",
+      "page": 12,
+      "untrusted_text": "Example text written by a person, mentioning M3 mounting holes.",
+      "match_count": 2,
+      "datasheet_url": "https://example.test/models/ina849-17/datasheets/1",
+      "pdf_url": "https://api.example.test/files/view"
+    },
+    {
+      "datasheet_id": 1,
+      "file_name": "example-datasheet.pdf",
+      "page": 13,
+      "untrusted_text": "Example text written by a person, mentioning M3 mounting holes.",
+      "match_count": 1,
+      "datasheet_url": "https://example.test/models/ina849-17/datasheets/1",
+      "pdf_url": "https://api.example.test/files/view"
+    },
+    {
+      "datasheet_id": 1,
+      "file_name": "example-datasheet.pdf",
+      "page": 17,
+      "untrusted_text": "Example text written by a person, mentioning M3 mounting holes.",
+      "match_count": 7,
+      "datasheet_url": "https://example.test/models/ina849-17/datasheets/1",
+      "pdf_url": "https://api.example.test/files/view"
+    },
+    {
+      "datasheet_id": 1,
+      "file_name": "example-datasheet.pdf",
+      "page": 18,
+      "untrusted_text": "Example text written by a person, mentioning M3 mounting holes.",
+      "match_count": 14,
+      "datasheet_url": "https://example.test/models/ina849-17/datasheets/1",
+      "pdf_url": "https://api.example.test/files/view"
+    },
+    {
+      "datasheet_id": 1,
+      "file_name": "example-datasheet.pdf",
+      "page": 22,
+      "untrusted_text": "Example text written by a person, mentioning M3 mounting holes.",
+      "match_count": 1,
+      "datasheet_url": "https://example.test/models/ina849-17/datasheets/1",
+      "pdf_url": "https://api.example.test/files/view"
+    },
+    {
+      "datasheet_id": 1,
+      "file_name": "example-datasheet.pdf",
+      "page": 23,
+      "untrusted_text": "Example text written by a person, mentioning M3 mounting holes.",
+      "match_count": 1,
+      "datasheet_url": "https://example.test/models/ina849-17/datasheets/1",
+      "pdf_url": "https://api.example.test/files/view"
+    },
+    {
+      "datasheet_id": 1,
+      "file_name": "example-datasheet.pdf",
+      "page": 25,
+      "untrusted_text": "Example text written by a person, mentioning M3 mounting holes.",
+      "match_count": 1,
+      "datasheet_url": "https://example.test/models/ina849-17/datasheets/1",
+      "pdf_url": "https://api.example.test/files/view"
+    },
+    {
+      "datasheet_id": 1,
+      "file_name": "example-datasheet.pdf",
+      "page": 38,
+      "untrusted_text": "Example text written by a person, mentioning M3 mounting holes.",
+      "match_count": 1,
+      "datasheet_url": "https://example.test/models/ina849-17/datasheets/1",
+      "pdf_url": "https://api.example.test/files/view"
+    }
+  ],
+  "truncated": false
+}

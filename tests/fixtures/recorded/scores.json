@@ -1,0 +1,26 @@
+{
+  "count": 2,
+  "overall": 4.0,
+  "dimensions": {
+    "dimensional": {
+      "average": 3.0,
+      "count": 2
+    },
+    "printability": {
+      "average": 3.5,
+      "count": 2
+    },
+    "manufacturability": {
+      "average": 4.0,
+      "count": 2
+    },
+    "documentation": {
+      "average": 4.5,
+      "count": 2
+    },
+    "compatibility": {
+      "average": 5.0,
+      "count": 2
+    }
+  }
+}

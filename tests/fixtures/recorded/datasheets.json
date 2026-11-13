@@ -1,0 +1,19 @@
+{
+  "model_id": 17,
+  "model_uuid": "485bfaea-e88d-41d9-bfa4-fa2693df2042",
+  "model_url": "https://example.test/m/485bfaea-e88d-41d9-bfa4-fa2693df2042",
+  "items": [
+    {
+      "model_url": "https://example.test/m/485bfaea-e88d-41d9-bfa4-fa2693df2042",
+      "datasheet_url": "https://example.test/models/ina849-17/datasheets/1",
+      "pdf_url": "https://api.example.test/files/view",
+      "id": 1,
+      "file_name": "example-datasheet.pdf",
+      "page_count": 38,
+      "ocr_page_count": 38,
+      "size_bytes": 2904761,
+      "has_text": true,
+      "pages_with_text": 38
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "would_count": true,
+  "reason": "counted",
+  "allowed": true,
+  "daily_remaining": 5,
+  "weekly_remaining": 10,
+  "reset_at": "2026-11-14T00:00:00Z",
+  "sign_up_url": "https://example.test/register",
+  "account_hint": null
+}

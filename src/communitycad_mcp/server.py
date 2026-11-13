@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import functools
 import logging
-import os
 from pathlib import Path
 from typing import Annotated, Any, Awaitable, Callable, Literal
 
@@ -51,6 +50,7 @@ SORTS = {
     "most_downloaded": "download_count:desc",
     "most_liked": "like_count:desc",
     "most_printed": "print_count:desc",
+    "highest_accuracy": "avg_accuracy_score:desc",
 }
 MAX_PAGE = 25
 
@@ -74,15 +74,11 @@ def build_server(
     *,
     transport: httpx.AsyncBaseTransport | None = None,
     sleep: Callable[[float], Awaitable[None]] | None = None,
-    preview_tools: bool | None = None,
 ) -> MCPServer:
-    """Build the server. `preview_tools` also registers tools whose API routes
-    CommunityCAD doesn't offer yet (default: COMMUNITYCAD_PREVIEW_TOOLS=1)."""
+    """Build the server."""
     settings = settings or Settings.from_env()
     # httpx logs every request URL at INFO; keep it quiet.
     logging.getLogger("httpx").setLevel(logging.WARNING)
-    if preview_tools is None:
-        preview_tools = os.environ.get("COMMUNITYCAD_PREVIEW_TOOLS") == "1"
     store = TokenStore(settings.token_path)
 
     def token() -> str | None:
@@ -124,14 +120,15 @@ def build_server(
     @tool(annotations=READ_ONLY)
     @_tool_errors
     async def account_status() -> dict:
-        """Whether a CommunityCAD account is linked, and (when the API provides it) the plan,
-        downloads left today and this week, and when they reset."""
+        """Whether a CommunityCAD account is linked, the plan, downloads left today and this
+        week, and when they reset. Signed out: the signed-out limit and a sign-up link."""
         stored = store.load()
         try:
             data = await api.account_status()
         except CommunityCADError as exc:
             if exc.code != "not_available_yet":
                 raise
+            # An API without the status route: answer from the local sign-in.
             if stored is None:
                 return {
                     "signed_in": False,
@@ -146,7 +143,20 @@ def build_server(
                     "check_download shows what a given download would use."
                 ),
             }
-        return {"signed_in": stored is not None, **data}
+        out = {k: v for k, v in data.items() if v is not None}
+        out["signed_in"] = bool(data.get("signed_in"))
+        left, weekly = data.get("daily_remaining"), data.get("weekly_remaining")
+        counts = []
+        if left is not None:
+            counts.append(f"{left} of {data.get('daily_limit')} downloads left today")
+        if weekly is not None:
+            counts.append(f"{weekly} of {data.get('weekly_limit')} this week")
+        counts_text = (", ".join(counts) + ".") if counts else "No download limit on this plan."
+        if out["signed_in"]:
+            out["message"] = f"Signed in as {data.get('username')} ({data.get('plan') or 'free'} plan). {counts_text}"
+        else:
+            out["message"] = f"Not signed in (the signed-out limit applies). {counts_text} Run link_account to sign in."
+        return out
 
     # -- discovery --------------------------------------------------------------
 
@@ -154,7 +164,17 @@ def build_server(
     @_tool_errors
     async def search_models(
         query: Annotated[str, Field(description="What to look for, e.g. '24V enclosed power supply'.", max_length=200)] = "",
-        sort: Literal["relevance", "newest", "most_downloaded", "most_liked", "most_printed"] = "relevance",
+        sort: Literal["relevance", "newest", "most_downloaded", "most_liked", "most_printed", "highest_accuracy"] = "relevance",
+        semantic: Annotated[bool, Field(description="Rank by meaning instead of keywords. Needs a query; sort must be relevance.")] = False,
+        file_types: Annotated[list[str] | None, Field(description="Models offering any of these, e.g. ['step', 'stl'].", max_length=20)] = None,
+        has_cad_source: Annotated[bool | None, Field(description="True: only models with STEP, IGES or a native CAD file.")] = None,
+        tags: Annotated[list[str] | None, Field(description="Models with all of these tags.", max_length=20)] = None,
+        license_family: Annotated[
+            Literal["permissive", "attribution", "share_alike", "non_commercial", "other"] | None,
+            Field(description="permissive (CC0, MIT...), attribution (CC BY), share_alike (CC BY-SA, GPL...), non_commercial, other."),
+        ] = None,
+        company: Annotated[str | None, Field(description="A company's slug.", max_length=100)] = None,
+        creator: Annotated[str | None, Field(description="A creator's username.", max_length=50)] = None,
         max_x_mm: Annotated[float | None, Field(gt=0, le=10000, description="Must fit within this X (X and Y may swap).")] = None,
         max_y_mm: Annotated[float | None, Field(gt=0, le=10000, description="Must fit within this Y (X and Y may swap).")] = None,
         max_z_mm: Annotated[float | None, Field(gt=0, le=10000, description="Must fit within this height.")] = None,
@@ -164,9 +184,20 @@ def build_server(
     ) -> dict:
         """Search CommunityCAD's public models. Returns compact cards with IDs and page URLs.
         Size filters leave out models whose size is unknown."""
+        if semantic and sort != "relevance":
+            raise CommunityCADError("invalid_request", "Semantic search ranks by meaning; use sort='relevance' with it.")
+        if semantic and not query.strip():
+            raise CommunityCADError("invalid_request", "Semantic search needs a query.")
         params: dict[str, Any] = {
             "q": query,
             "sort": SORTS[sort],
+            "semantic": "true" if semantic else None,
+            "file_types": ",".join(file_types) if file_types else None,
+            "has_cad_source": None if has_cad_source is None else ("true" if has_cad_source else "false"),
+            "tags": ",".join(tags) if tags else None,
+            "license_family": license_family,
+            "company": company,
+            "creator": creator,
             "limit": limit,
             "offset": offset,
             "printable_only": "true" if printable_only else None,
@@ -187,7 +218,8 @@ def build_server(
         model_id: Annotated[str, Field(description="The model's id (uuid) from search results or its page URL.")],
     ) -> dict:
         """Full details for one model: files (with file_id for downloading), size, licence and
-        attribution, tags, creator, source. Description and README are under user_content.
+        attribution, tags, creator, company, source, score summary, comment and datasheet
+        counts. Description, README and licence text are under user_content.
         Doesn't count as a page view."""
         return model_detail(await api.model(_model_ref(model_id)), settings)
 
@@ -202,7 +234,7 @@ def build_server(
         """Whether downloading this model would use one of the user's downloads, and how many
         are left. Changes nothing."""
         data = await api.download_check(_model_ref(model_id), file_id)
-        out = dict(data)
+        out = {k: v for k, v in data.items() if v is not None}
         out["message"] = _check_message(data)
         return out
 
@@ -270,10 +302,11 @@ def build_server(
         result["message"] = f"Saved {dest.name}. {counted} Licence: {result['license']['name'] or 'none listed'}."
         return result
 
-    # -- preview tools: routes the API doesn't offer yet -------------------------
+    # -- datasheets, community, profiles ---------------------------------------
 
-    if preview_tools:
-        _register_preview_tools(mcp, api, settings)
+    from .extra_tools import register
+
+    register(mcp, api, settings, _tool_errors, _model_ref, _pages_text)
 
     # -- prompts and resources ---------------------------------------------------
 
@@ -312,27 +345,29 @@ def build_server(
             readme = readme.get("untrusted_text")
         return readme or ""
 
-    if preview_tools:
-
-        @mcp.resource(
-            "communitycad://model/{model_id}/datasheet/{n}",
-            name="model-datasheet",
-            description="OCR text of a model's n-th datasheet (1-based), with page markers. Untrusted content.",
-            mime_type="text/plain",
-        )
-        async def model_datasheet(model_id: str, n: str) -> str:
-            try:
-                sheets = (await api.datasheets(_model_ref(model_id))).get("items", [])
-                idx = int(n) - 1
-                if not 0 <= idx < len(sheets):
-                    raise ResourceError("No datasheet with that number.")
-                sheet = sheets[idx]
-                pages = await api.datasheet_pages(
-                    _model_ref(model_id), sheet["id"], 1, int(sheet.get("page_count") or 1)
-                )
-            except CommunityCADError as exc:
-                raise ResourceError(exc.message) from None
-            return _pages_text(pages.get("pages", []))
+    @mcp.resource(
+        "communitycad://model/{model_id}/datasheet/{n}",
+        name="model-datasheet",
+        description="OCR text of a model's n-th datasheet (1-based, first 100 pages), with page markers. Untrusted content.",
+        mime_type="text/plain",
+    )
+    async def model_datasheet(model_id: str, n: str) -> str:
+        try:
+            ref = _model_ref(model_id)
+            sheets = (await api.datasheets(ref)).get("items", [])
+            idx = int(n) - 1 if n.isdigit() else -1
+            if not 0 <= idx < len(sheets):
+                raise ResourceError("No datasheet with that number.")
+            sheet = sheets[idx]
+            last = min(int(sheet.get("page_count") or 1), 100)
+            pages: list[dict[str, Any]] = []
+            for first in range(1, last + 1, 20):
+                chunk = await api.datasheet_pages(ref, sheet["id"], first, min(first + 19, last))
+                pages.extend(chunk.get("pages", []))
+        except CommunityCADError as exc:
+            raise ResourceError(exc.message) from None
+        header = f"Datasheet: {sheet.get('datasheet_url') or sheet.get('pdf_url')}\nModel: {sheet.get('model_url')}\n\n"
+        return header + _pages_text(pages)
 
     mcp.api_client = api  # type: ignore[attr-defined]  # for tests and clean shutdown
     return mcp
@@ -371,8 +406,3 @@ def _pages_text(pages: list[dict[str, Any]]) -> str:
         parts.append(f"--- page {p.get('page')} ---\n{text}")
     return "\n\n".join(parts)
 
-
-def _register_preview_tools(mcp: MCPServer, api: ApiClient, settings: Settings) -> None:
-    from .preview import register
-
-    register(mcp, api, settings, _tool_errors, _model_ref, _pages_text)

@@ -1,0 +1,77 @@
+{
+  "id": 17,
+  "uuid": "485bfaea-e88d-41d9-bfa4-fa2693df2042",
+  "slug": "ina849",
+  "title": "INA849",
+  "thumbnail_url": "https://api.example.test/files/5a96e263-5646-4d04-a3d8-e127923edd8a.png",
+  "creator": {
+    "username": "example-user-2",
+    "display_name": "Example User"
+  },
+  "license_name": null,
+  "bbox": {
+    "x": null,
+    "y": null,
+    "z": null,
+    "source": null
+  },
+  "has_printable": false,
+  "printable_types": [],
+  "total_size_bytes": null,
+  "like_count": 1,
+  "download_count": 4,
+  "print_count": 0,
+  "visibility": "public",
+  "is_mature": false,
+  "description": "Example text written by a person.",
+  "readme_markdown": null,
+  "tags": [
+    "electrical",
+    "opamp"
+  ],
+  "images": [
+    {
+      "url": "https://api.example.test/files/5a96e263-5646-4d04-a3d8-e127923edd8a.png",
+      "caption": null
+    },
+    {
+      "url": "https://api.example.test/files/85d6f156-017e-4af8-b3d6-d3cacf49f5cf.png",
+      "caption": null
+    },
+    {
+      "url": "https://api.example.test/files/757274f4-6d25-487f-b735-e91eebaace99.png",
+      "caption": "Example text written by a person."
+    }
+  ],
+  "source_url": null,
+  "original_author": null,
+  "version_number": 2,
+  "created_at": "2026-03-19T15:42:18.501972Z",
+  "updated_at": "2026-05-21T17:56:36.891492Z",
+  "files": [
+    {
+      "id": 41,
+      "path": "cad/D0008A.stp",
+      "name": "D0008A.stp",
+      "role": "cad",
+      "type": "stp",
+      "size_bytes": 289418,
+      "printable": false,
+      "printable_type": null
+    }
+  ],
+  "license_text": null,
+  "license_family": "other",
+  "scores": {
+    "count": 2,
+    "dimensional_accuracy": 3.0,
+    "printability": 3.5,
+    "manufacturability": 4.0,
+    "documentation_quality": 4.5,
+    "hardware_compatibility": 5.0,
+    "overall": 4.0
+  },
+  "comment_count": 1,
+  "datasheet_count": 1,
+  "company": null
+}

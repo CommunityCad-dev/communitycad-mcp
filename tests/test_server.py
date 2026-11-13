@@ -8,21 +8,16 @@ WORKING = {
     "link_account", "unlink_account", "account_status", "search_models", "get_model",
     "check_download", "download_file",
 }
-PREVIEW = {
+ALL = WORKING | {
     "list_datasheets", "read_datasheet", "search_datasheet", "get_comments", "get_scores",
     "get_company", "search_companies", "get_creator", "find_similar",
 }
 
 
-async def test_default_tool_list(settings):
-    async with Client(build_server(settings, preview_tools=False)) as c:
-        assert {t.name for t in (await c.list_tools()).tools} == WORKING
-
-
-async def test_preview_tool_list(settings):
-    async with Client(build_server(settings, preview_tools=True)) as c:
+async def test_tool_list(settings):
+    async with Client(build_server(settings)) as c:
         tools = (await c.list_tools()).tools
-        assert {t.name for t in tools} == WORKING | PREVIEW
+        assert {t.name for t in tools} == ALL
         assert all(t.description for t in tools)
         assert not any("comment" in t.name and t.name.startswith(("post", "add")) for t in tools)
 
@@ -38,7 +33,7 @@ async def test_prompts_and_readme_resource(settings, api_mock):
     uuid = "fc331ca7-8bea-4e84-a501-4260dd904bcf"
     detail = {**fixture("model_detail.json"), "readme_markdown": "# Example readme"}
     api_mock.get(f"{V1}/catalog/models/{uuid}").respond(200, json=detail)
-    async with Client(build_server(settings, preview_tools=True)) as c:
+    async with Client(build_server(settings)) as c:
         prompts = {p.name for p in (await c.list_prompts()).prompts}
         assert prompts == {"find-a-part", "review-a-model"}
         p = await c.get_prompt("find-a-part", {"part": "24V PSU"})

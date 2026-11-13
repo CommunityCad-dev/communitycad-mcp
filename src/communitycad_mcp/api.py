@@ -159,16 +159,18 @@ class ApiClient:
             params={"from": first_page, "to": last_page},
         )
 
-    async def datasheet_search(self, model_id: str, query: str, limit: int = 10) -> dict[str, Any]:
-        return await self._json(
-            "GET", f"/catalog/models/{model_id}/datasheets/search", params={"q": query, "limit": limit}
-        )
+    async def datasheet_search(self, model_id: str, query: str) -> dict[str, Any]:
+        return await self._json("GET", f"/catalog/models/{model_id}/datasheets/search", params={"q": query})
 
     # -- community -----------------------------------------------------------
 
-    async def comments(self, model_id: str, limit: int, offset: int) -> dict[str, Any]:
+    async def comments(
+        self, model_id: str, limit: int, offset: int, order: str = "newest", replies: int = 5
+    ) -> dict[str, Any]:
         return await self._json(
-            "GET", f"/catalog/models/{model_id}/comments", params={"limit": limit, "offset": offset}
+            "GET",
+            f"/catalog/models/{model_id}/comments",
+            params={"limit": limit, "offset": offset, "order": order, "replies": replies},
         )
 
     async def scores(self, model_id: str) -> dict[str, Any]:
@@ -176,11 +178,11 @@ class ApiClient:
 
     # -- profiles --------------------------------------------------------------
 
-    async def company(self, slug: str) -> dict[str, Any]:
-        return await self._json("GET", f"/catalog/companies/{slug}")
+    async def company(self, slug_or_id: str, limit: int = 10, offset: int = 0) -> dict[str, Any]:
+        return await self._json("GET", f"/companies/{slug_or_id}", params={"limit": limit, "offset": offset})
 
     async def companies(self, query: str, limit: int, offset: int) -> dict[str, Any]:
-        return await self._json("GET", "/catalog/companies", params={"q": query, "limit": limit, "offset": offset})
+        return await self._json("GET", "/companies", params={"q": query, "limit": limit, "offset": offset})
 
-    async def creator(self, username: str) -> dict[str, Any]:
-        return await self._json("GET", f"/catalog/creators/{username}")
+    async def creator(self, username: str, limit: int = 10, offset: int = 0) -> dict[str, Any]:
+        return await self._json("GET", f"/creators/{username}", params={"limit": limit, "offset": offset})

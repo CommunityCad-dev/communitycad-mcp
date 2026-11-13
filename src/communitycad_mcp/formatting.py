@@ -42,6 +42,8 @@ def licence_info(model: dict[str, Any], page_url: str) -> dict[str, Any]:
     if not name:
         required: bool | None = None
         note = "No licence is listed. Treat it as all rights reserved and check the model page before reusing it."
+    elif model.get("license_family") in ("attribution", "share_alike", "non_commercial"):
+        required, note = True, None
     elif any(k in lowered for k in _NO_ATTRIBUTION):
         required, note = False, None
     elif any(k in lowered for k in _ATTRIBUTION):
@@ -59,12 +61,26 @@ def licence_info(model: dict[str, Any], page_url: str) -> dict[str, Any]:
     attribution = f'"{model.get("title")}"{by}, {name or "no licence listed"}, {source}'
     out: dict[str, Any] = {
         "name": name,
+        "family": model.get("license_family"),
         "attribution_required": required,
         "attribution": attribution,
     }
     if note:
         out["note"] = note
     return out
+
+
+# The model detail's flat score summary uses longer names than get_scores; one set of names
+# keeps the two answers comparable.
+_SCORE_NAMES = {
+    "dimensional_accuracy": "dimensional",
+    "documentation_quality": "documentation",
+    "hardware_compatibility": "compatibility",
+}
+
+
+def score_summary(scores: dict[str, Any]) -> dict[str, Any]:
+    return {_SCORE_NAMES.get(k, k): v for k, v in scores.items()}
 
 
 def card(item: dict[str, Any], settings: Settings) -> dict[str, Any]:
@@ -128,10 +144,13 @@ def model_detail(m: dict[str, Any], settings: Settings) -> dict[str, Any]:
             "images": [i.get("url") for i in m.get("images") or []],
         }
     )
-    for key in ("score_summary", "comment_count", "datasheet_count", "versions"):
-        if key in m:
+    if m.get("scores"):
+        out["score_summary"] = score_summary(m["scores"])
+    for key in ("comment_count", "datasheet_count", "company"):
+        if m.get(key) is not None:
             out[key] = m[key]
     content = {
+        "license_text": _untrusted(m.get("license_text")),
         "description": _untrusted(m.get("description")),
         "readme_markdown": _untrusted(m.get("readme_markdown")),
         "image_captions": [_untrusted(i.get("caption")) for i in m.get("images") or [] if i.get("caption")],

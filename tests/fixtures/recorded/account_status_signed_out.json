@@ -1,0 +1,15 @@
+{
+  "signed_in": false,
+  "username": null,
+  "display_name": null,
+  "plan": null,
+  "token": null,
+  "daily_limit": 5,
+  "daily_remaining": 5,
+  "weekly_limit": 10,
+  "weekly_remaining": 10,
+  "reset_daily": "2026-11-14T00:00:00Z",
+  "reset_weekly": "2026-11-16T00:00:00Z",
+  "plans_url": "https://example.test/subscribe",
+  "sign_up_url": "https://example.test/register"
+}

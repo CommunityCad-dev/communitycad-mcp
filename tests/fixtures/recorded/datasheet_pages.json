@@ -1,0 +1,22 @@
+{
+  "model_url": "https://example.test/m/485bfaea-e88d-41d9-bfa4-fa2693df2042",
+  "datasheet_url": "https://example.test/models/ina849-17/datasheets/1",
+  "pdf_url": "https://api.example.test/files/view",
+  "model_id": 17,
+  "datasheet_id": 1,
+  "file_name": "example-datasheet.pdf",
+  "page_count": 38,
+  "ocr_page_count": 38,
+  "from_page": 1,
+  "to_page": 2,
+  "pages": [
+    {
+      "page": 1,
+      "untrusted_text": "Example text written by a person, mentioning M3 mounting holes."
+    },
+    {
+      "page": 2,
+      "untrusted_text": "Example text written by a person, mentioning M3 mounting holes."
+    }
+  ]
+}

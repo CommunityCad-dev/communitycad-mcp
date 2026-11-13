@@ -1,0 +1,15 @@
+{
+  "signed_in": true,
+  "username": "example-user",
+  "display_name": "Example User",
+  "plan": "free",
+  "token": {"client_name": "communitycad-mcp", "scopes": ["catalog:read", "download"]},
+  "daily_limit": 10,
+  "daily_remaining": 9,
+  "weekly_limit": 30,
+  "weekly_remaining": 29,
+  "reset_daily": "2026-11-14T00:00:00Z",
+  "reset_weekly": "2026-11-16T00:00:00Z",
+  "plans_url": "https://example.test/subscribe",
+  "sign_up_url": null
+}

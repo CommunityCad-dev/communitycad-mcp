@@ -36,10 +36,23 @@ async def test_check_download_free_and_own(run, api_mock, signed_in):
     assert (await run.ok("check_download", {"model_id": UUID}))["message"].startswith("Free:")
 
 
-async def test_check_download_signed_out_today(run, api_mock):
-    api_mock.get(f"{V1}/catalog/models/{UUID}/download-check").respond(401, json={"detail": "Not authenticated"})
-    err = await run.err("check_download", {"model_id": UUID})
-    assert err["code"] == "sign_in_required_for_download" and "link_account" in err["message"]
+async def test_check_download_signed_out(run, api_mock):
+    route = api_mock.get(f"{V1}/catalog/models/{UUID}/download-check").respond(
+        200, json=fixture("download_check_signed_out.json")
+    )
+    out = await run.ok("check_download", {"model_id": UUID})
+    assert "Authorization" not in route.calls[0].request.headers
+    assert out["message"] == "This will use 1 of the user's 5 remaining downloads today."
+    assert out["sign_up_url"] and "account_hint" not in out
+
+
+async def test_download_without_download_scope(run, api_mock, signed_in):
+    mock_model(api_mock)
+    api_mock.post(f"{V1}/catalog/models/{UUID}/files/155/download-url").respond(
+        403, json={"detail": {"error": "insufficient_scope", "required": ["download"], "missing": ["download"]}}
+    )
+    err = await run.err("download_file", {"model_id": UUID, "file_id": 155})
+    assert err["code"] == "scope_missing" and err["missing"] == ["download"]
 
 
 async def test_download_zip_member(run, api_mock, signed_in, settings):
@@ -103,7 +116,7 @@ async def test_signed_out_download_carries_hint(run, api_mock, settings):
     assert out["sign_up_url"] and out["account_hint"]
 
 
-async def test_signed_out_download_refused_today(run, api_mock):
+async def test_signed_out_download_refused_by_an_older_api(run, api_mock):
     mock_model(api_mock)
     api_mock.post(f"{V1}/catalog/models/{UUID}/files/155/download-url").respond(401, json={"detail": "Not authenticated"})
     err = await run.err("download_file", {"model_id": UUID, "file_id": 155})

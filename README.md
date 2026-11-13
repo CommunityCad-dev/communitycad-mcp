@@ -2,7 +2,7 @@
 
 An [MCP](https://modelcontextprotocol.io) server that lets AI agents use [CommunityCAD](https://communitycad.dev) the way a person does: search real, dimensionally accurate parts, read their datasheets, comments and accuracy scores, and download the CAD files into a design.
 
-> **Status: in development.** Not on PyPI yet. Search, model details, sign-in and downloads work; the rest waits on the CommunityCAD API (see Tools).
+> **Status: in development.** Not on PyPI yet.
 
 ## What it's for
 
@@ -49,7 +49,7 @@ Other MCP clients: run `uvx communitycad-mcp` as a stdio server.
 npx @modelcontextprotocol/inspector uvx communitycad-mcp
 ```
 
-**Sign in** by asking your agent to "link my CommunityCAD account". It shows a short code and a link; approve it on communitycad.dev and ask the agent to finish. Searching and reading work without signing in.
+**Sign in** by asking your agent to "link my CommunityCAD account". It shows a short code and a link; approve it on communitycad.dev and ask the agent to finish. Searching, reading and downloads within the signed-out limit work without signing in.
 
 ### Settings
 
@@ -61,24 +61,16 @@ All optional, as environment variables:
 | `COMMUNITYCAD_MAX_DOWNLOAD_MB` | `500` | Larger files are refused before anything is counted |
 | `COMMUNITYCAD_CONFIG_DIR` | your user config dir | Where the sign-in is kept |
 | `COMMUNITYCAD_API_URL` | `https://communitycad.dev/api` | The API to talk to |
-| `COMMUNITYCAD_PREVIEW_TOOLS` | unset | `1` also lists tools whose API isn't live yet |
 
 ## Tools
 
-Available now:
-
-- **Account:** `account_status`, `link_account`, `unlink_account`
-- **Discovery:** `search_models` (text, size limits, printable only, sort), `get_model`
-- **Download:** `check_download`, `download_file` (optionally extracts one file from a ZIP)
-
-Coming as the CommunityCAD API adds them (built, listed with `COMMUNITYCAD_PREVIEW_TOOLS=1`):
-
-- **Discovery:** `find_similar`, `get_company`, `search_companies`, `get_creator`, more search filters
+- **Account:** `account_status` (plan, downloads left and reset times, signed in or out), `link_account`, `unlink_account`
+- **Discovery:** `search_models` (keywords or meaning; filters for size, file types, CAD source, tags, licence family, company, creator; sort by newest, downloads, likes, prints or accuracy), `get_model`, `find_similar`, `get_company`, `search_companies`, `get_creator`
 - **Datasheets:** `list_datasheets`, `read_datasheet`, `search_datasheet`
 - **Community (read-only):** `get_comments`, `get_scores`
-- Signed-out downloads and plan details in `account_status`
+- **Download:** `check_download`, `download_file` (optionally extracts one file from a ZIP). Works signed out, within the signed-out limit.
 
-Prompts: `find-a-part`, `review-a-model`. Resources: `communitycad://model/{id}/readme`, `communitycad://model/{id}/datasheet/{n}` (with the datasheet API).
+Prompts: `find-a-part`, `review-a-model`. Resources: `communitycad://model/{id}/readme`, `communitycad://model/{id}/datasheet/{n}`.
 
 ## Downloads and limits
 

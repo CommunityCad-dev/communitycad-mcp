@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from mcp import Client, StdioServerParameters
 
-from .test_server import WORKING
+from .test_server import ALL
 
 SCRIPT = Path(sys.executable).parent / "communitycad-mcp"
 
@@ -20,4 +20,4 @@ async def test_console_script_over_stdio(tmp_path):
     )
     async with Client(params) as c:
         tools = {t.name for t in (await c.list_tools()).tools}
-    assert tools == WORKING
+    assert tools == ALL

@@ -1,0 +1,74 @@
+{
+  "id": 1,
+  "slug": "acme-corp",
+  "name": "Acme Corp",
+  "description": "Example text written by a person.",
+  "website_url": null,
+  "logo_url": "https://api.example.test/files/9e2f4121-14ff-4f9d-b909-9a85a5688460.png",
+  "verified": false,
+  "model_count": 7,
+  "page_url": "https://example.test/companies/acme-corp",
+  "follower_count": 0,
+  "created_at": "2026-03-16T00:29:45.610432Z",
+  "models": {
+    "items": [
+      {
+        "id": 47,
+        "uuid": "d9607c1f-081a-4945-9b32-1d7188356b06",
+        "slug": "socket-tool",
+        "title": "Socket tool",
+        "thumbnail_url": "https://api.example.test/files/0a573f32-26e9-4ebf-aac5-6cc127f1ea5e.png",
+        "creator": {
+          "username": "example-user-2",
+          "display_name": "Example User"
+        },
+        "license_name": null,
+        "bbox": {
+          "x": null,
+          "y": null,
+          "z": null,
+          "source": null
+        },
+        "has_printable": false,
+        "printable_types": [],
+        "total_size_bytes": null,
+        "like_count": 0,
+        "download_count": 2,
+        "print_count": 0,
+        "visibility": "public",
+        "is_mature": false,
+        "page_url": "https://example.test/models/socket-tool-47"
+      },
+      {
+        "id": 46,
+        "uuid": "855e4f53-5265-428d-b955-ac5e2fa47036",
+        "slug": "hook",
+        "title": "Hook",
+        "thumbnail_url": "https://api.example.test/files/d260c558-5ef1-4797-87dd-9094008a13a3.png",
+        "creator": {
+          "username": "example-user-2",
+          "display_name": "Example User"
+        },
+        "license_name": null,
+        "bbox": {
+          "x": null,
+          "y": null,
+          "z": null,
+          "source": null
+        },
+        "has_printable": false,
+        "printable_types": [],
+        "total_size_bytes": null,
+        "like_count": 0,
+        "download_count": 2,
+        "print_count": 0,
+        "visibility": "public",
+        "is_mature": false,
+        "page_url": "https://example.test/models/hook-46"
+      }
+    ],
+    "total": 7,
+    "limit": 2,
+    "offset": 0
+  }
+}

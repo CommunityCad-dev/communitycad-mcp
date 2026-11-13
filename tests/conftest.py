@@ -80,4 +80,4 @@ class ToolRunner:
 
 @pytest.fixture
 def run(settings: Settings, api_mock) -> ToolRunner:
-    return ToolRunner(build_server(settings, sleep=_no_sleep, preview_tools=True))
+    return ToolRunner(build_server(settings, sleep=_no_sleep))

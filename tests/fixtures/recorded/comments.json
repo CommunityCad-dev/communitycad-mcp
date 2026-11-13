@@ -1,0 +1,134 @@
+{
+  "items": [
+    {
+      "id": 20,
+      "parent_id": null,
+      "removed": false,
+      "untrusted_text": "Example text written by a person, mentioning M3 mounting holes.",
+      "author": {
+        "username": "example-user-3",
+        "display_name": "Example User"
+      },
+      "is_creator": false,
+      "created_at": "2026-11-11T17:19:46.584490Z",
+      "edited": false,
+      "edited_at": null,
+      "score": 1,
+      "replies": [
+        {
+          "id": 21,
+          "parent_id": 20,
+          "removed": false,
+          "untrusted_text": "Example text written by a person, mentioning M3 mounting holes.",
+          "author": {
+            "username": "example-user-2",
+            "display_name": "Example User"
+          },
+          "is_creator": true,
+          "created_at": "2026-11-11T17:19:46.584490Z",
+          "edited": false,
+          "edited_at": null,
+          "score": 1
+        },
+        {
+          "id": 22,
+          "parent_id": 21,
+          "removed": false,
+          "untrusted_text": "Example text written by a person, mentioning M3 mounting holes.",
+          "author": {
+            "username": "example-user-3",
+            "display_name": "Example User"
+          },
+          "is_creator": false,
+          "created_at": "2026-11-11T17:19:46.584490Z",
+          "edited": false,
+          "edited_at": null,
+          "score": 1
+        }
+      ],
+      "reply_count": 9
+    },
+    {
+      "id": 15,
+      "parent_id": null,
+      "removed": false,
+      "untrusted_text": "Example text written by a person, mentioning M3 mounting holes.",
+      "author": {
+        "username": "example-user-3",
+        "display_name": "Example User"
+      },
+      "is_creator": false,
+      "created_at": "2026-11-11T16:57:08.272971Z",
+      "edited": true,
+      "edited_at": "2026-11-11T17:27:27.872176Z",
+      "score": 1,
+      "replies": [
+        {
+          "id": 16,
+          "parent_id": 15,
+          "removed": false,
+          "untrusted_text": "Example text written by a person, mentioning M3 mounting holes.",
+          "author": {
+            "username": "example-user-2",
+            "display_name": "Example User"
+          },
+          "is_creator": true,
+          "created_at": "2026-11-11T16:57:08.272971Z",
+          "edited": false,
+          "edited_at": null,
+          "score": 3
+        },
+        {
+          "id": 17,
+          "parent_id": 16,
+          "removed": true,
+          "untrusted_text": null,
+          "author": null,
+          "is_creator": false,
+          "created_at": "2026-11-11T16:57:08.272971Z",
+          "edited": false,
+          "edited_at": null,
+          "score": null
+        }
+      ],
+      "reply_count": 4
+    },
+    {
+      "id": 3,
+      "parent_id": null,
+      "removed": false,
+      "untrusted_text": "Example text written by a person, mentioning M3 mounting holes.",
+      "author": {
+        "username": "example-user-4",
+        "display_name": null
+      },
+      "is_creator": false,
+      "created_at": "2026-03-15T16:03:58.343009Z",
+      "edited": false,
+      "edited_at": null,
+      "score": -1,
+      "replies": [
+        {
+          "id": 4,
+          "parent_id": 3,
+          "removed": false,
+          "untrusted_text": "Example text written by a person, mentioning M3 mounting holes.",
+          "author": {
+            "username": "example-user-4",
+            "display_name": null
+          },
+          "is_creator": false,
+          "created_at": "2026-03-15T16:04:17.697875Z",
+          "edited": false,
+          "edited_at": null,
+          "score": 1
+        }
+      ],
+      "reply_count": 1
+    }
+  ],
+  "total": 4,
+  "limit": 3,
+  "offset": 0,
+  "order": "newest"
+}

@@ -1,0 +1,76 @@
+{
+  "username": "example-user-2",
+  "display_name": "Example User",
+  "bio": "Example text written by a person.",
+  "avatar_url": "https://api.example.test/files/87583777-322e-4600-aded-5e800690d519.png",
+  "website_url": "https://example.test/source",
+  "created_at": "2026-03-12T22:44:23.144121Z",
+  "model_count": 76,
+  "total_downloads": 65,
+  "total_likes": 6,
+  "follower_count": 0,
+  "following_count": 1,
+  "page_url": "https://example.test/users/example-user-2",
+  "donation_url": null,
+  "models": {
+    "items": [
+      {
+        "id": 1,
+        "uuid": "908a55bb-a963-42cd-ac9c-6bbc575613f0",
+        "slug": "test",
+        "title": "Test",
+        "thumbnail_url": "https://api.example.test/files/54200e4a-7c1b-45fe-88fc-7cf661aadc97.png",
+        "creator": {
+          "username": "example-user-2",
+          "display_name": "Example User"
+        },
+        "license_name": null,
+        "bbox": {
+          "x": null,
+          "y": null,
+          "z": null,
+          "source": null
+        },
+        "has_printable": false,
+        "printable_types": [],
+        "total_size_bytes": null,
+        "like_count": 2,
+        "download_count": 26,
+        "print_count": 0,
+        "visibility": "public",
+        "is_mature": false,
+        "page_url": "https://example.test/models/test-1"
+      },
+      {
+        "id": 17,
+        "uuid": "485bfaea-e88d-41d9-bfa4-fa2693df2042",
+        "slug": "ina849",
+        "title": "INA849",
+        "thumbnail_url": "https://api.example.test/files/5a96e263-5646-4d04-a3d8-e127923edd8a.png",
+        "creator": {
+          "username": "example-user-2",
+          "display_name": "Example User"
+        },
+        "license_name": null,
+        "bbox": {
+          "x": null,
+          "y": null,
+          "z": null,
+          "source": null
+        },
+        "has_printable": false,
+        "printable_types": [],
+        "total_size_bytes": null,
+        "like_count": 1,
+        "download_count": 4,
+        "print_count": 0,
+        "visibility": "public",
+        "is_mature": false,
+        "page_url": "https://example.test/models/ina849-17"
+      }
+    ],
+    "total": 76,
+    "limit": 2,
+    "offset": 0
+  }
+}

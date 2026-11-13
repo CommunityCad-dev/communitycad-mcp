@@ -50,6 +50,9 @@ async def stream_to(api: ApiClient, url: str, dest: Path, max_bytes: int) -> int
                 raise
             except Exception:
                 raise CommunityCADError("upstream_unavailable", "The file transfer failed part way.") from None
+        umask = os.umask(0)
+        os.umask(umask)
+        os.chmod(tmp_name, 0o666 & ~umask)  # a normal user file, not mkstemp's 0600
         os.replace(tmp_name, dest)
     except BaseException:
         Path(tmp_name).unlink(missing_ok=True)
