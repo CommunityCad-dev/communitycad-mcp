@@ -1,0 +1,85 @@
+{
+  "items": [
+    {
+      "id": 121,
+      "uuid": "d8a0e347-dc18-472a-8ca8-c84e707a5d12",
+      "slug": "iso-4762-m3x8",
+      "title": "ISO 4762 M3x8",
+      "thumbnail_url": "https://api.example.test/files/placeholder.png",
+      "creator": {
+        "username": "example-user",
+        "display_name": "Example User"
+      },
+      "license_name": "CC-BY-4.0",
+      "bbox": {
+        "x": null,
+        "y": null,
+        "z": null,
+        "source": null
+      },
+      "has_printable": false,
+      "printable_types": [],
+      "total_size_bytes": 7,
+      "like_count": 0,
+      "download_count": 0,
+      "print_count": 0,
+      "visibility": "public",
+      "is_mature": false
+    },
+    {
+      "id": 120,
+      "uuid": "c056d678-f35a-491b-ad48-22fba8bef5a4",
+      "slug": "iso-4762-m3x10",
+      "title": "ISO 4762 M3x10",
+      "thumbnail_url": "https://api.example.test/files/placeholder.png",
+      "creator": {
+        "username": "example-user",
+        "display_name": "Example User"
+      },
+      "license_name": "CC-BY-4.0",
+      "bbox": {
+        "x": null,
+        "y": null,
+        "z": null,
+        "source": null
+      },
+      "has_printable": false,
+      "printable_types": [],
+      "total_size_bytes": 8,
+      "like_count": 0,
+      "download_count": 0,
+      "print_count": 0,
+      "visibility": "public",
+      "is_mature": false
+    },
+    {
+      "id": 122,
+      "uuid": "f5842502-7855-4634-9f6d-764269116d9a",
+      "slug": "iso-4762-m3x12",
+      "title": "ISO 4762 M3x12",
+      "thumbnail_url": "https://api.example.test/files/placeholder.png",
+      "creator": {
+        "username": "example-user",
+        "display_name": "Example User"
+      },
+      "license_name": "CC-BY-4.0",
+      "bbox": {
+        "x": null,
+        "y": null,
+        "z": null,
+        "source": null
+      },
+      "has_printable": false,
+      "printable_types": [],
+      "total_size_bytes": 8,
+      "like_count": 0,
+      "download_count": 0,
+      "print_count": 0,
+      "visibility": "public",
+      "is_mature": false
+    }
+  ],
+  "total": 88,
+  "limit": 3,
+  "offset": 0
+}

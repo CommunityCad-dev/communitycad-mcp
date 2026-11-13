@@ -1,0 +1,12 @@
+{
+  "url": "https://api.example.test/files/example.stl?signature=example",
+  "expires_at": "2026-01-01T00:10:00Z",
+  "file_id": 155,
+  "name": "example.stl",
+  "size_bytes": 11,
+  "version_number": 1,
+  "counted": true,
+  "reason": "counted",
+  "sign_up_url": "https://example.test/register",
+  "account_hint": "1 download left today. A free account gives you more."
+}

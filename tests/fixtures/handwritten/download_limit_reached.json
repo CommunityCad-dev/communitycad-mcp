@@ -1,0 +1,11 @@
+{
+  "error": "download_limit_reached",
+  "detail": "Download limit reached.",
+  "limit_type": "daily",
+  "daily_remaining": 0,
+  "weekly_remaining": null,
+  "reset_at": "2026-01-02T00:00:00+00:00",
+  "upgrade_url": "https://example.test/subscribe",
+  "sign_up_url": "https://example.test/register",
+  "account_hint": "A free account gives you more downloads a day."
+}

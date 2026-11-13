@@ -1,0 +1,8 @@
+{
+  "access_token": "cct_example_secret_value",
+  "token_type": "Bearer",
+  "scope": "catalog:read download",
+  "token_id": 42,
+  "username": "example-user",
+  "upgraded": false
+}

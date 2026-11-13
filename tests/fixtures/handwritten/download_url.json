@@ -1,0 +1,10 @@
+{
+  "url": "https://api.example.test/files/example.zip?signature=example",
+  "expires_at": "2026-01-01T00:10:00Z",
+  "file_id": 155,
+  "name": "example.zip",
+  "size_bytes": 200,
+  "version_number": 1,
+  "counted": true,
+  "reason": "counted"
+}
