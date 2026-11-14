@@ -106,9 +106,19 @@ async def test_account_status_signed_out(run, api_mock):
     route = api_mock.get(f"{V1}/account/status").respond(200, json=fixture("account_status_signed_out.json"))
     out = await run.ok("account_status")
     assert "Authorization" not in route.calls[0].request.headers
-    assert out["signed_in"] is False and out["sign_up_url"] and out["plans_url"]
-    assert out["daily_limit"] == 5 and out["weekly_limit"] == 10
-    assert "5 of 5 downloads left today" in out["message"]
+    assert out["signed_in"] is False and out["daily_limit"] == 5 and out["weekly_limit"] == 10
+    assert out["message"] == "Not signed in; the signed-out limit applies. 5 of 5 downloads left today, 9 of 10 this week."
+    # 5 of 5 left: no nudge to sign up.
+    assert not {"sign_up_url", "plans_url", "account_hint"} & out.keys()
+    assert "link_account" not in json.dumps(out)
+
+
+async def test_account_status_signed_out_hint_near_limit(run, api_mock):
+    data = {**fixture("account_status_signed_out.json"), "daily_remaining": 1, "account_hint": "A free account gets more."}
+    api_mock.get(f"{V1}/account/status").respond(200, json=data)
+    out = await run.ok("account_status")
+    assert out["account_hint"] == "A free account gets more." and out["sign_up_url"].endswith("/register")
+    assert "link_account" not in out["message"]
 
 
 async def test_account_status_fallback_until_route_exists(run, api_mock, signed_in):
@@ -120,4 +130,4 @@ async def test_account_status_fallback_until_route_exists(run, api_mock, signed_
 async def test_account_status_signed_out_fallback(run, api_mock):
     api_mock.get(f"{V1}/account/status").respond(404, json={"detail": "Not Found"})
     out = await run.ok("account_status")
-    assert out["signed_in"] is False and out["sign_up_url"].endswith("/register")
+    assert out == {"signed_in": False, "message": "Not signed in; the signed-out limit applies."}

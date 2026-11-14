@@ -43,7 +43,12 @@ async def test_check_download_signed_out(run, api_mock):
     out = await run.ok("check_download", {"model_id": UUID})
     assert "Authorization" not in route.calls[0].request.headers
     assert out["message"] == "This will use 1 of the user's 5 remaining downloads today."
-    assert out["sign_up_url"] and "account_hint" not in out
+    assert "sign_up_url" not in out and "account_hint" not in out
+
+    near = {**fixture("download_check_signed_out.json"), "daily_remaining": 1, "account_hint": "A free account gets more."}
+    api_mock.get(f"{V1}/catalog/models/{UUID}/download-check").respond(200, json=near)
+    out = await run.ok("check_download", {"model_id": UUID})
+    assert out["account_hint"] == "A free account gets more." and out["sign_up_url"].endswith("/register")
 
 
 async def test_download_without_download_scope(run, api_mock, signed_in):
