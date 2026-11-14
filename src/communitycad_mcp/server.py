@@ -19,7 +19,7 @@ from .api import ApiClient
 from .config import Settings
 from .download import extract_member, model_dir, remaining_from_headers, safe_name, stream_to
 from .errors import CommunityCADError
-from .formatting import card, licence_info, model_detail
+from .formatting import card, licence_info, model_detail, page_url
 from .token_store import TokenStore
 
 INSTRUCTIONS = """\
@@ -277,7 +277,7 @@ def build_server(
         dest = target_dir / safe_name(issued.get("name") or entry.get("path") or "file")
         size = await stream_to(api, issued["url"], dest, settings.max_download_bytes)
 
-        page = settings.model_url(model.get("uuid", ref))
+        page = page_url({"uuid": ref, **model}, settings)
         result: dict[str, Any] = {
             "path": str(dest),
             "name": dest.name,

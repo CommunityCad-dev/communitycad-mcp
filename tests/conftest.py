@@ -13,7 +13,7 @@ from communitycad_mcp.server import build_server
 from communitycad_mcp.token_store import StoredToken, TokenStore
 
 FIXTURES = Path(__file__).parent / "fixtures"
-API = "https://api.example.test"
+API = "https://example.test/api"
 V1 = API + "/v1"
 TOKEN = "cct_example_secret_value"
 

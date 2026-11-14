@@ -82,7 +82,7 @@ async def test_company_and_search(run, api_mock):
     assert route.calls[0].request.url.params["limit"] == "2"
     assert co["url"].endswith("/companies/acme-corp") and co["model_count"] == 7
     assert co["user_content"]["description"].startswith("Example text")
-    assert co["models"]["total"] == 7 and co["models"]["items"][0]["url"].startswith("https://communitycad.dev/m/")
+    assert co["models"]["total"] == 7 and co["models"]["items"][0]["url"] == "https://example.test/models/socket-tool-47"
     found = await run.ok("search_companies", {"query": "acme"})
     assert found["companies"][0]["slug"] == "acme-corp"
 
@@ -118,3 +118,33 @@ async def test_datasheet_resource_reads_in_chunks(settings, api_mock):
     text = res.contents[0].text
     assert text.startswith("Datasheet: https://example.test/") and "--- page 1 ---" in text
     assert [(r.request.url.params["from"], r.request.url.params["to"]) for r in pages.calls] == [("1", "20"), ("21", "38")]
+
+
+async def test_no_production_links_with_another_api(run, api_mock, signed_in):
+    """With a non-production API, every page link follows the API (or the site derived from it)."""
+    detail = fixture("model_detail.json")
+    uuid = detail["uuid"]
+    for path, name in (("search", "search.json"),):
+        api_mock.get(f"{V1}/catalog/{path}").respond(200, json=fixture(name))
+    base = f"{V1}/catalog/models/{uuid}"
+    api_mock.get(base).respond(200, json=detail)
+    api_mock.get(f"{base}/comments").respond(200, json=fixture("comments.json"))
+    api_mock.get(f"{base}/scores").respond(200, json=fixture("scores.json"))
+    api_mock.get(f"{base}/similar").respond(200, json=fixture("similar.json"))
+    api_mock.get(f"{base}/datasheets").respond(200, json=fixture("datasheets.json"))
+    api_mock.get(f"{V1}/companies/acme-corp").respond(200, json=fixture("company.json"))
+    api_mock.get(f"{V1}/creators/example-user-2").respond(200, json=fixture("creator.json"))
+    calls = [
+        ("search_models", {}),
+        ("get_model", {"model_id": uuid}),
+        ("get_comments", {"model_id": uuid}),
+        ("get_scores", {"model_id": uuid}),
+        ("find_similar", {"model_id": uuid}),
+        ("list_datasheets", {"model_id": uuid}),
+        ("get_company", {"slug": "acme-corp"}),
+        ("get_creator", {"username": "example-user-2"}),
+    ]
+    for name, args in calls:
+        text = json.dumps(await run.ok(name, args))
+        assert "communitycad.dev" not in text, name
+        assert "https://example.test/" in text, name

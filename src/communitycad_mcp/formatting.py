@@ -70,11 +70,19 @@ def licence_info(model: dict[str, Any], page_url: str) -> dict[str, Any]:
     return out
 
 
+def page_url(item: dict[str, Any], settings: Settings) -> str:
+    """A model's page link: the API's own when it gives one, else built from the site URL."""
+    for key in ("page_url", "model_url"):
+        if isinstance(item.get(key), str) and item[key]:
+            return item[key]
+    return settings.model_url(item.get("uuid", ""))
+
+
 def card(item: dict[str, Any], settings: Settings) -> dict[str, Any]:
     out = {
         "id": item.get("uuid"),
         "title": item.get("title"),
-        "url": settings.model_url(item.get("uuid", "")),
+        "url": page_url(item, settings),
         "creator": (item.get("creator") or {}).get("username"),
         "license": item.get("license_name"),
         "size": size_info(item.get("bbox")),
@@ -100,7 +108,7 @@ def _untrusted(value: Any) -> Any:
 
 
 def model_detail(m: dict[str, Any], settings: Settings) -> dict[str, Any]:
-    url = settings.model_url(m.get("uuid", ""))
+    url = page_url(m, settings)
     out = card(m, settings)
     out.update(
         {

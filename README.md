@@ -61,6 +61,7 @@ All optional, as environment variables:
 | `COMMUNITYCAD_MAX_DOWNLOAD_MB` | `500` | Larger files are refused before anything is counted |
 | `COMMUNITYCAD_CONFIG_DIR` | your user config dir | Where the sign-in is kept |
 | `COMMUNITYCAD_API_URL` | `https://communitycad.dev/api` | The API to talk to |
+| `COMMUNITYCAD_SITE_URL` | the API URL without `/api` | The website for page links the API doesn't return itself. Set it when the API isn't served under the site's `/api` path (e.g. `http://localhost:8080`) |
 
 ## Tools
 

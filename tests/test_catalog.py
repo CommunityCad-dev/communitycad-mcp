@@ -14,7 +14,7 @@ async def test_search_cards_and_params(run, api_mock):
     assert q["fit_x"] == "120.0" and q["fit_z"] == "10000"
     assert "Authorization" not in route.calls[0].request.headers
     first = out["results"][0]
-    assert first["url"] == f"https://communitycad.dev/m/{first['id']}"
+    assert first["url"] == f"https://example.test/m/{first['id']}"
     assert first["size"] is None and first["license"] == "CC-BY-4.0"
     assert out["next_offset"] == 3
 
@@ -46,7 +46,7 @@ async def test_get_model_detail(run, api_mock):
     detail["source_url"] = None
     api_mock.get(f"{V1}/catalog/models/{UUID}").respond(200, json=detail)
     out = await run.ok("get_model", {"model_id": UUID})
-    assert out["license"]["attribution"] == f'"Nut5" by Example User, GPL-3.0, https://communitycad.dev/m/{UUID}'
+    assert out["license"]["attribution"] == f'"Nut5" by Example User, GPL-3.0, https://example.test/m/{UUID}'
 
 
 async def test_user_text_only_under_user_content(run, api_mock):

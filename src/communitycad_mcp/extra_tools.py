@@ -154,7 +154,7 @@ def register(
         items = [comment(c) for c in data.get("items", [])]
         total = data.get("total", len(items))
         out: dict[str, Any] = {
-            "model_url": settings.model_url(ref),
+            "model_url": data.get("model_url") or settings.model_url(ref),
             "total": total,
             "note": USER_CONTENT_NOTE,
             "comments": items,
@@ -172,7 +172,7 @@ def register(
         data = await api.scores(ref)
         dims = data.get("dimensions") or {}
         return {
-            "model_url": settings.model_url(ref),
+            "model_url": data.get("model_url") or settings.model_url(ref),
             "ratings": data.get("count", 0),
             "overall": data.get("overall"),
             "scores": {
@@ -264,4 +264,4 @@ def register(
         hasn't been analysed yet."""
         ref = model_ref(model_id)
         data = await api.similar(ref, limit)
-        return {"model_url": settings.model_url(ref), "results": [card(m, settings) for m in data.get("items", [])]}
+        return {"model_url": data.get("model_url") or settings.model_url(ref), "results": [card(m, settings) for m in data.get("items", [])]}

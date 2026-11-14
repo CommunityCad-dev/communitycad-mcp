@@ -2,7 +2,7 @@ from pathlib import Path
 
 import httpx
 
-from communitycad_mcp.config import DEFAULT_API_URL, Settings
+from communitycad_mcp.config import DEFAULT_API_URL, Settings, site_url_for
 from communitycad_mcp.errors import CommunityCADError, from_response
 from communitycad_mcp.token_store import StoredToken, TokenStore
 
@@ -29,6 +29,19 @@ def test_overrides(tmp_path):
     assert s.download_dir == tmp_path / "d"
     assert s.token_path == tmp_path / "c" / "token.json"
     assert s.max_download_bytes == 2 * 1024 * 1024
+
+
+def test_site_url_from_api_url(capsys):
+    assert site_url_for("https://communitycad.dev/api") == "https://communitycad.dev"
+    assert site_url_for("https://example.test/api/") == "https://example.test"
+    assert site_url_for("https://example.test/sub/api") == "https://example.test/sub"
+    assert capsys.readouterr().err == ""
+    # An API on its own port: no safe guess, so it says to set COMMUNITYCAD_SITE_URL.
+    assert site_url_for("http://localhost:8080") == "http://localhost:8080"
+    assert "COMMUNITYCAD_SITE_URL" in capsys.readouterr().err
+    s = Settings.from_env({"COMMUNITYCAD_API_URL": "http://localhost:8080", "COMMUNITYCAD_SITE_URL": "http://localhost:3000/"})
+    assert s.site_url == "http://localhost:3000" and s.model_url("abc") == "http://localhost:3000/m/abc"
+    assert Settings.from_env({"COMMUNITYCAD_API_URL": "https://example.test/api"}).site_url == "https://example.test"
 
 
 def resp(status, body=None, headers=None):
