@@ -66,7 +66,7 @@ All optional, as environment variables:
 ## Tools
 
 - **Account:** `account_status` (plan, downloads left and reset times, signed in or out), `link_account`, `unlink_account`
-- **Discovery:** `search_models` (keywords or meaning; filters for size, file types, CAD source, tags, licence family, company, creator; sort by newest, downloads, likes, prints or accuracy), `get_model`, `find_similar`, `get_company`, `search_companies`, `get_creator`
+- **Discovery:** `search_models` (keywords or meaning; filters for size, file types, CAD source, tags, licence family, company, creator; sort by newest, downloads, likes, prints or accuracy), `get_model`, `show_images` (preview pictures inline; never uses a download), `find_similar`, `get_company`, `search_companies`, `get_creator`
 - **Datasheets:** `list_datasheets`, `read_datasheet`, `search_datasheet`
 - **Community (read-only):** `get_comments`, `get_scores`
 - **Download:** `check_download`, `download_file` (optionally extracts one file from a ZIP). Works signed out, within the signed-out limit.

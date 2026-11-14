@@ -141,6 +141,21 @@ class ApiClient:
         limits = {k: v for k, v in resp.headers.items() if k.lower().startswith("x-download-")}
         return resp.json(), limits
 
+    async def fetch_image(self, url: str, max_bytes: int) -> bytes | None:
+        """Fetch a preview image (no API token is sent). None when it fails or is too large."""
+        try:
+            async with self._files.stream("GET", url) as resp:
+                if not resp.is_success:
+                    return None
+                buf = bytearray()
+                async for chunk in resp.aiter_bytes():
+                    buf += chunk
+                    if len(buf) > max_bytes:
+                        return None
+                return bytes(buf)
+        except httpx.HTTPError:
+            return None
+
     def stream_file(self, url: str):
         """Stream a presigned file URL (no API token is sent)."""
         return self._files.stream("GET", url)
