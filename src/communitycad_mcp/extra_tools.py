@@ -206,7 +206,7 @@ def register(
             "verified": data.get("verified"),
             "model_count": data.get("model_count"),
             "followers": data.get("follower_count"),
-            "user_content": {"note": USER_CONTENT_NOTE, "description": data.get("description")},
+            "user_content": {"note": USER_CONTENT_NOTE, "description": data.get("untrusted_text") or data.get("description")},
             "models": models_page(data),
         }
 
@@ -250,7 +250,7 @@ def register(
             "website_url": data.get("website_url"),
             "model_count": data.get("model_count"),
             "total_downloads": data.get("total_downloads"),
-            "user_content": {"note": USER_CONTENT_NOTE, "bio": data.get("bio")},
+            "user_content": {"note": USER_CONTENT_NOTE, "bio": data.get("untrusted_text") or data.get("bio")},
             "models": models_page(data),
         }
         if data.get("donation_url"):

@@ -66,16 +66,35 @@
       "printable_type": "stl"
     }
   ],
-  "license_text": "Example text written by a person.",
+  "license_text": {
+    "untrusted_text": "Example text written by a person, mentioning M3 mounting holes."
+  },
   "license_family": "share_alike",
   "scores": {
     "count": 0,
-    "dimensional_accuracy": null,
-    "printability": null,
-    "manufacturability": null,
-    "documentation_quality": null,
-    "hardware_compatibility": null,
-    "overall": null
+    "overall": null,
+    "dimensions": {
+      "dimensional": {
+        "average": null,
+        "count": 0
+      },
+      "printability": {
+        "average": null,
+        "count": 0
+      },
+      "manufacturability": {
+        "average": null,
+        "count": 0
+      },
+      "documentation": {
+        "average": null,
+        "count": 0
+      },
+      "compatibility": {
+        "average": null,
+        "count": 0
+      }
+    }
   },
   "comment_count": 0,
   "datasheet_count": 0,

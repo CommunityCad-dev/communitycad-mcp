@@ -70,19 +70,6 @@ def licence_info(model: dict[str, Any], page_url: str) -> dict[str, Any]:
     return out
 
 
-# The model detail's flat score summary uses longer names than get_scores; one set of names
-# keeps the two answers comparable.
-_SCORE_NAMES = {
-    "dimensional_accuracy": "dimensional",
-    "documentation_quality": "documentation",
-    "hardware_compatibility": "compatibility",
-}
-
-
-def score_summary(scores: dict[str, Any]) -> dict[str, Any]:
-    return {_SCORE_NAMES.get(k, k): v for k, v in scores.items()}
-
-
 def card(item: dict[str, Any], settings: Settings) -> dict[str, Any]:
     out = {
         "id": item.get("uuid"),
@@ -145,7 +132,7 @@ def model_detail(m: dict[str, Any], settings: Settings) -> dict[str, Any]:
         }
     )
     if m.get("scores"):
-        out["score_summary"] = score_summary(m["scores"])
+        out["score_summary"] = m["scores"]
     for key in ("comment_count", "datasheet_count", "company"):
         if m.get(key) is not None:
             out[key] = m[key]

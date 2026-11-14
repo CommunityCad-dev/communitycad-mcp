@@ -2,7 +2,7 @@
   "id": 1,
   "slug": "acme-corp",
   "name": "Acme Corp",
-  "description": "Example text written by a person.",
+  "untrusted_text": "Example text written by a person, mentioning M3 mounting holes.",
   "website_url": null,
   "logo_url": "https://api.example.test/files/9e2f4121-14ff-4f9d-b909-9a85a5688460.png",
   "verified": false,

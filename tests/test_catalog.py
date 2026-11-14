@@ -106,15 +106,12 @@ async def test_semantic_search(run, api_mock):
 
 async def test_get_model_extra_fields(run, api_mock):
     detail = copy.deepcopy(fixture("model_detail_full.json"))
-    detail["license_text"] = "UNTRUSTED-LICENCE custom terms"
+    detail["license_text"] = {"untrusted_text": "UNTRUSTED-LICENCE custom terms"}
     detail["company"] = {"slug": "acme-corp", "name": "Acme Corp"}
     uuid = detail["uuid"]
     api_mock.get(f"{V1}/catalog/models/{uuid}").respond(200, json=detail)
     out = await run.ok("get_model", {"model_id": uuid})
-    assert out["score_summary"] == {
-        "count": 2, "dimensional": 3.0, "printability": 3.5, "manufacturability": 4.0,
-        "documentation": 4.5, "compatibility": 5.0, "overall": 4.0,
-    }
+    assert out["score_summary"]["count"] == 2 and out["score_summary"]["dimensions"]["dimensional"] == {"average": 3.0, "count": 2}
     assert out["comment_count"] == 1 and out["datasheet_count"] == 1
     assert out["company"]["slug"] == "acme-corp" and out["license"]["family"] == "other"
     assert out["user_content"]["license_text"].startswith("UNTRUSTED-LICENCE")
