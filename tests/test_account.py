@@ -131,3 +131,67 @@ async def test_account_status_signed_out_fallback(run, api_mock):
     api_mock.get(f"{V1}/account/status").respond(404, json={"detail": "Not Found"})
     out = await run.ok("account_status")
     assert out == {"signed_in": False, "message": "Not signed in; the signed-out limit applies."}
+
+
+async def _link_with_client(settings, api_mock, client_name):
+    from mcp import Client
+    from mcp.types import Implementation
+
+    from communitycad_mcp.server import build_server
+
+    route = api_mock.post(f"{V1}/auth/device/code").respond(200, json=fixture("device_code.json"))
+    info = Implementation(name=client_name, version="1.0") if client_name is not None else None
+    async with Client(build_server(settings), **({"client_info": info} if info else {})) as c:
+        await c.call_tool("link_account", {})
+    return json.loads(route.calls[-1].request.content)["device_name"]
+
+
+async def test_device_name_from_client_info(settings, api_mock, monkeypatch):
+    monkeypatch.setattr("socket.gethostname", lambda: "DESKTOP-ABC.local")
+    cases = {
+        "claude-code": "Claude Code on DESKTOP-ABC",
+        "claude-ai": "Claude Desktop on DESKTOP-ABC",
+        "cursor-vscode": "Cursor on DESKTOP-ABC",
+        "Visual Studio Code": "VS Code on DESKTOP-ABC",
+        "my-agent": "my-agent on DESKTOP-ABC",
+        "mcp": "AI app on DESKTOP-ABC",
+        None: "AI app on DESKTOP-ABC",  # the SDK's default client name
+    }
+    for client_name, expected in cases.items():
+        assert await _link_with_client(settings, api_mock, client_name) == expected, client_name
+
+
+def test_device_name_limits():
+    from communitycad_mcp.account import device_name
+
+    assert device_name("claude-code", "x" * 300) == ("Claude Code on " + "x" * 300)[:100]
+    assert device_name("<script>\nalert", "host") == "script alert on host"
+    assert device_name("", "") == "AI app"
+
+
+async def test_wait_runs_out_still_waiting(run, api_mock):
+    """A code that's still pending when the wait runs out is not an error and says so."""
+    api_mock.post(f"{V1}/auth/device/code").respond(200, json=fixture("device_code.json"))
+    api_mock.post(f"{V1}/auth/device/token").respond(400, json={"error": "authorization_pending"})
+    out = await run.ok("link_account", {"wait": True})
+    assert out["status"] == "pending" and out["waiting_for_approval"] is True
+    assert out["message"].startswith("Still waiting for approval")
+    assert "link?code=ABCD-EFGH" in out["message"]
+    again = await run.ok("link_account")
+    assert again["status"] == "pending" and "upstream" not in json.dumps(again)
+
+
+async def test_poll_hiccup_keeps_waiting(run, api_mock):
+    api_mock.post(f"{V1}/auth/device/code").respond(200, json=fixture("device_code.json"))
+    api_mock.post(f"{V1}/auth/device/token").mock(
+        side_effect=[
+            httpx.ConnectError("x"),
+            httpx.Response(503),
+            httpx.Response(200, json=fixture("device_token.json")),
+        ]
+    )
+    first = await run.ok("link_account", {"wait": True})
+    assert first["status"] == "pending" and first["message"].startswith("Still waiting for approval")
+    second = await run.ok("link_account", {"wait": True})
+    assert second["status"] == "pending"
+    assert (await run.ok("link_account"))["status"] == "linked"

@@ -8,13 +8,13 @@ from pathlib import Path
 from typing import Annotated, Any, Awaitable, Callable, Literal
 
 import httpx
-from mcp.server.mcpserver import MCPServer
+from mcp.server.mcpserver import Context, MCPServer
 from mcp.server.mcpserver.exceptions import ResourceError
 from mcp.types import CallToolResult, TextContent, ToolAnnotations
 from pydantic import Field
 
 from . import __version__
-from .account import AccountLinker
+from .account import AccountLinker, device_name
 from .api import ApiClient
 from .config import Settings
 from .download import extract_member, model_dir, remaining_from_headers, safe_name, stream_to
@@ -110,13 +110,16 @@ def build_server(
     @tool(annotations=ToolAnnotations(readOnlyHint=False, openWorldHint=True))
     @_tool_errors
     async def link_account(
-        wait: Annotated[bool, Field(description="Keep polling (up to ~2 minutes) until the user approves.")] = False,
+        ctx: Context,
+        wait: Annotated[bool, Field(description="Keep checking (up to ~50 seconds) until the user approves.")] = False,
     ) -> dict:
         """Sign in to CommunityCAD with a short code the user approves on the website.
 
         The first call returns a code and a link for the user. Call again (or with wait=true)
-        after they approve to finish. The sign-in is saved on this computer only."""
-        return await linker.link(wait=wait)
+        after they approve to finish. status "pending" means it is still waiting for the user's
+        approval; that is normal, not a connection problem. The sign-in is saved on this
+        computer only and shows in the account as "<AI app> on <computer>"."""
+        return await linker.link(wait=wait, device_name=device_name(_client_name(ctx)))
 
     @tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, openWorldHint=True))
     @_tool_errors
@@ -385,6 +388,15 @@ def build_server(
 
     mcp.api_client = api  # type: ignore[attr-defined]  # for tests and clean shutdown
     return mcp
+
+
+def _client_name(ctx: Context) -> str | None:
+    """The AI app's name from the MCP initialize clientInfo, if it sent one."""
+    try:
+        params = ctx.session.client_params
+        return params.client_info.name if params and params.client_info else None
+    except (AttributeError, ValueError):
+        return None
 
 
 def _model_ref(model_id: str) -> str:

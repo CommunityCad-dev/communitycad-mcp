@@ -9,6 +9,8 @@ code expires.
 from __future__ import annotations
 
 import asyncio
+import re
+import socket
 import time
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable
@@ -35,6 +37,51 @@ _FAILURES = {
 }
 
 
+# MCP clientInfo names of common AI apps, lower-cased, and how to show them.
+KNOWN_APPS = {
+    "claude-code": "Claude Code",
+    "claude-ai": "Claude Desktop",
+    "claude desktop": "Claude Desktop",
+    "claude-desktop": "Claude Desktop",
+    "cursor": "Cursor",
+    "cursor-vscode": "Cursor",
+    "visual studio code": "VS Code",
+    "vscode": "VS Code",
+    "windsurf": "Windsurf",
+    "windsurf-client": "Windsurf",
+    "zed": "Zed",
+    "cline": "Cline",
+    "continue": "Continue",
+    "goose": "Goose",
+    "mcp-inspector": "MCP Inspector",
+    "inspector-client": "MCP Inspector",
+}
+FALLBACK_APP = "AI app"
+MAX_DEVICE_NAME = 100
+_UNSAFE = re.compile(r"[^\w .()+-]+")
+
+
+def app_name(client_name: str | None) -> str:
+    """A readable name for the AI app from its MCP clientInfo name."""
+    raw = (client_name or "").strip()
+    if raw.lower() in KNOWN_APPS:
+        return KNOWN_APPS[raw.lower()]
+    cleaned = " ".join(_UNSAFE.sub(" ", raw).split())[:40]
+    # The SDKs' default names say nothing about the app.
+    if not cleaned or cleaned.lower() in ("mcp", "client", "mcp-client", "python-sdk"):
+        return FALLBACK_APP
+    return cleaned
+
+
+def device_name(client_name: str | None, hostname: str | None = None) -> str:
+    """'<App> on <computer>', at most 100 characters."""
+    host = hostname if hostname is not None else socket.gethostname()
+    host = " ".join(_UNSAFE.sub(" ", host.split(".")[0]).split())
+    name = app_name(client_name)
+    full = f"{name} on {host}" if host else name
+    return full[:MAX_DEVICE_NAME].rstrip()
+
+
 class AccountLinker:
     def __init__(
         self,
@@ -58,7 +105,20 @@ class AccountLinker:
             "expires_in_s": max(0, int(p.expires_at - self._clock())),
         }
 
-    async def link(self, *, wait: bool = False, max_wait_s: float = 120.0, device_name: str | None = None) -> dict[str, Any]:
+    def _waiting(self, p: _Pending, note: str = "") -> dict[str, Any]:
+        """The answer while the code is still valid and not yet approved. Never an error."""
+        return {
+            "status": "pending",
+            "waiting_for_approval": True,
+            **self._code_info(p),
+            "message": (
+                f"Still waiting for approval: code {p.user_code} hasn't been approved yet.{note} "
+                f"Ask the user to open {p.verification_uri_complete} (signed in to CommunityCAD) and approve it, "
+                "then call link_account again to finish."
+            ),
+        }
+
+    async def link(self, *, wait: bool = False, max_wait_s: float = 50.0, device_name: str | None = None) -> dict[str, Any]:
         existing = self.store.load()
         if existing is not None:
             return {
@@ -92,9 +152,15 @@ class AccountLinker:
     async def _poll(self, *, wait: bool, max_wait_s: float) -> dict[str, Any]:
         p = self._pending
         assert p is not None
-        deadline = self._clock() + max_wait_s
+        waited = 0.0  # counted in poll intervals, so a test sleep that returns at once still ends
         while True:
-            error, body = await self.api.device_token(p.device_code)
+            try:
+                error, body = await self.api.device_token(p.device_code)
+            except CommunityCADError as exc:
+                if exc.code not in ("upstream_unavailable", "rate_limited") or self._clock() >= p.expires_at:
+                    raise
+                # A check that didn't get through doesn't end the sign-in: the code is still valid.
+                return self._waiting(p, " The last check didn't get through, so call again in a moment.")
             if error is None:
                 token = body.get("access_token")
                 if not token:
@@ -127,13 +193,10 @@ class AccountLinker:
             if now >= p.expires_at:
                 self._pending = None
                 raise CommunityCADError("not_signed_in", _FAILURES["expired_token"])
-            if not wait or now + p.interval > deadline:
-                return {
-                    "status": "pending",
-                    **self._code_info(p),
-                    "message": f"Still waiting for the user to approve code {p.user_code}. Call link_account again once they have.",
-                }
+            if not wait or waited + p.interval > max_wait_s:
+                return self._waiting(p)
             await self._sleep(p.interval)
+            waited += p.interval
 
     async def unlink(self) -> dict[str, Any]:
         existing = self.store.load()

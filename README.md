@@ -49,7 +49,7 @@ Other MCP clients: run `uvx communitycad-mcp` as a stdio server.
 npx @modelcontextprotocol/inspector uvx communitycad-mcp
 ```
 
-**Sign in** by asking your agent to "link my CommunityCAD account". It shows a short code and a link; approve it on communitycad.dev and ask the agent to finish. Searching, reading and downloads within the signed-out limit work without signing in.
+**Sign in** by asking your agent to "link my CommunityCAD account". It shows a short code and a link; approve it on communitycad.dev and ask the agent to finish. The connection is named after the AI app and the computer (e.g. "Claude Code on DESKTOP-ABC"), so you can tell several apart in your account. Searching, reading and downloads within the signed-out limit work without signing in.
 
 ### Settings
 
