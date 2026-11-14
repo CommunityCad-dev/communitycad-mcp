@@ -63,18 +63,39 @@ SORTS = {
 MAX_PAGE = 25
 
 
-def _tool_errors(fn: Callable[..., Awaitable[Any]]) -> Callable[..., Awaitable[Any]]:
-    """Report CommunityCADError to the agent as a typed error result."""
+SIGNED_OUT_NOTE = (
+    "Your CommunityCAD sign-in was revoked or expired; you're signed out now. "
+    "Run link_account to sign in again."
+)
 
-    @functools.wraps(fn)
-    async def wrapper(*args: Any, **kwargs: Any) -> Any:
-        try:
-            return await fn(*args, **kwargs)
-        except CommunityCADError as exc:
-            # A plain error result: the JSON body, without the SDK's "Error executing tool" prefix.
-            return CallToolResult(content=[TextContent(type="text", text=exc.to_json())], is_error=True)
 
-    return wrapper
+def _tool_errors_for(api: ApiClient) -> Callable[[Callable[..., Awaitable[Any]]], Callable[..., Awaitable[Any]]]:
+    """Report CommunityCADError to the agent as a typed error result, and pass on the
+    one-time note when the call found the saved sign-in revoked."""
+
+    def decorate(fn: Callable[..., Awaitable[Any]]) -> Callable[..., Awaitable[Any]]:
+        @functools.wraps(fn)
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
+            api.take_revoked()  # only a revoke found by this call counts
+            try:
+                result = await fn(*args, **kwargs)
+            except CommunityCADError as exc:
+                if api.take_revoked():
+                    exc.details["note"] = SIGNED_OUT_NOTE
+                # A plain error result: the JSON body, without the SDK's "Error executing tool" prefix.
+                return CallToolResult(content=[TextContent(type="text", text=exc.to_json())], is_error=True)
+            if api.take_revoked():
+                if isinstance(result, dict):
+                    result["note"] = SIGNED_OUT_NOTE
+                    if isinstance(result.get("message"), str):
+                        result["message"] = f"{SIGNED_OUT_NOTE} {result['message']}"
+                elif isinstance(result, CallToolResult):
+                    result.content.append(TextContent(type="text", text=SIGNED_OUT_NOTE))
+            return result
+
+        return wrapper
+
+    return decorate
 
 
 def build_server(
@@ -93,7 +114,13 @@ def build_server(
         stored = store.load()
         return stored.access_token if stored else None
 
-    api = ApiClient(settings, token, transport=transport)
+    def forget(refused: str) -> None:
+        stored = store.load()
+        if stored is not None and stored.access_token == refused:  # not a newer sign-in
+            store.delete()
+
+    api = ApiClient(settings, token, transport=transport, on_revoked=forget)
+    _tool_errors = _tool_errors_for(api)
     linker = AccountLinker(api, store, **({"sleep": sleep} if sleep else {}))
 
     mcp = MCPServer(
@@ -132,12 +159,16 @@ def build_server(
     async def account_status() -> dict:
         """Whether a CommunityCAD account is linked, the plan, downloads left today and this
         week, and when they reset. Signed out: the signed-out limit and what's left of it."""
-        stored = store.load()
+        sent = token()
         try:
             data = await api.account_status()
+            if sent and not data.get("signed_in") and token() == sent:
+                # The status route answers a dead token as signed out instead of a 401.
+                api.forget_token(sent)
         except CommunityCADError as exc:
             if exc.code != "not_available_yet":
                 raise
+            stored = store.load()
             # An API without the status route: answer from the local sign-in.
             if stored is None:
                 return {"signed_in": False, "message": "Not signed in; the signed-out limit applies."}
@@ -246,7 +277,7 @@ def build_server(
         (shared with the website)."""
         data = await api.download_check(_model_ref(model_id), file_id)
         out = _hint_only({k: v for k, v in data.items() if v is not None})
-        out["message"] = _check_message(data)
+        out["message"] = _check_message(data, signed_in=api.signed_in)
         return out
 
     @tool(annotations=ToolAnnotations(readOnlyHint=False, idempotentHint=False, openWorldHint=True))
@@ -417,7 +448,7 @@ def _hint_only(out: dict[str, Any], *extra: str) -> dict[str, Any]:
     return out
 
 
-def _check_message(d: dict[str, Any]) -> str:
+def _check_message(d: dict[str, Any], *, signed_in: bool) -> str:
     reason = d.get("reason")
     if not d.get("allowed"):
         if reason == "issue_cap_reached":
@@ -426,7 +457,8 @@ def _check_message(d: dict[str, Any]) -> str:
     if reason == "own_model":
         return "Free: this is the user's own model."
     if not d.get("would_count"):
-        return "Free: this model was already downloaded here today."
+        per = "account" if signed_in else "network"
+        return f"Free: this model was already downloaded today (it counts once per {per} per day)."
     left = d.get("daily_remaining")
     if left is None:
         return "This will use one download (no daily limit on this plan)."

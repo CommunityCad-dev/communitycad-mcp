@@ -5,6 +5,8 @@ import zipfile
 
 import httpx
 
+from communitycad_mcp.token_store import TokenStore
+
 from .conftest import TOKEN, V1, fixture
 
 UUID = "fc331ca7-8bea-4e84-a501-4260dd904bcf"
@@ -150,3 +152,63 @@ async def test_failed_transfer_leaves_no_partial_file(run, api_mock, signed_in, 
     err = await run.err("download_file", {"model_id": UUID, "file_id": 155})
     assert err["code"] == "upstream_unavailable"
     assert list((settings.download_dir / "nut5").iterdir()) == []
+
+
+SIGNED_OUT_NOTE = (
+    "Your CommunityCAD sign-in was revoked or expired; you're signed out now. Run link_account to sign in again."
+)
+
+
+def revoked_then(status, body):
+    """401 for a request with a token; status/body for one without."""
+
+    def answer(request):
+        if "Authorization" in request.headers:
+            return httpx.Response(401, json={"detail": "Invalid or revoked token"})
+        return httpx.Response(status, json=body)
+
+    return answer
+
+
+async def test_check_download_revoked_signs_out(run, api_mock, signed_in, settings):
+    route = api_mock.get(f"{V1}/catalog/models/{UUID}/download-check").mock(
+        side_effect=revoked_then(200, fixture("download_check_signed_out.json"))
+    )
+    out = await run.ok("check_download", {"model_id": UUID})
+    assert route.call_count == 2
+    assert TokenStore(settings.token_path).load() is None
+    assert out["note"] == SIGNED_OUT_NOTE
+
+
+async def test_download_revoked_signs_out_and_downloads(run, api_mock, signed_in, settings):
+    model = api_mock.get(f"{V1}/catalog/models/{UUID}").mock(side_effect=revoked_then(200, fixture("model_detail.json")))
+    issue = api_mock.post(f"{V1}/catalog/models/{UUID}/files/155/download-url").respond(
+        200, json=fixture("download_url_signed_out.json")
+    )
+    api_mock.get(url__startswith="https://api.example.test/files/example.stl").respond(200, content=b"solid x\nend")
+    out = await run.ok("download_file", {"model_id": UUID, "file_id": 155})
+    assert model.call_count == 2 and issue.call_count == 1
+    assert "Authorization" not in issue.calls[0].request.headers
+    assert TokenStore(settings.token_path).load() is None
+    assert out["note"] == SIGNED_OUT_NOTE and out["message"].startswith(SIGNED_OUT_NOTE)
+
+
+async def test_download_revoked_and_account_needed(run, api_mock, signed_in, settings):
+    mock_model(api_mock)
+    issue = api_mock.post(f"{V1}/catalog/models/{UUID}/files/155/download-url").mock(
+        side_effect=revoked_then(401, {"detail": "Not authenticated"})
+    )
+    err = await run.err("download_file", {"model_id": UUID, "file_id": 155})
+    assert issue.call_count == 2  # once with the token, once signed out, never again
+    assert err["code"] == "sign_in_required_for_download" and err["note"] == SIGNED_OUT_NOTE
+    assert TokenStore(settings.token_path).load() is None
+
+
+async def test_free_repeat_wording(run, api_mock, signed_in, settings):
+    free = {**fixture("download_check.json"), "would_count": False, "reason": "same_destination_today"}
+    api_mock.get(f"{V1}/catalog/models/{UUID}/download-check").respond(200, json=free)
+    out = await run.ok("check_download", {"model_id": UUID})
+    assert out["message"] == "Free: this model was already downloaded today (it counts once per account per day)."
+    TokenStore(settings.token_path).delete()
+    out = await run.ok("check_download", {"model_id": UUID})
+    assert out["message"] == "Free: this model was already downloaded today (it counts once per network per day)."

@@ -25,9 +25,13 @@ class ApiClient:
         settings: Settings,
         token_getter: Callable[[], str | None],
         transport: httpx.AsyncBaseTransport | None = None,
+        on_revoked: Callable[[str], None] | None = None,
     ) -> None:
         self.settings = settings
         self._token_getter = token_getter
+        # Called with the token the API refused (401), so the caller can forget it.
+        self._on_revoked = on_revoked
+        self._signed_out_by_revoke = False
         self._http = httpx.AsyncClient(
             base_url=settings.api_url.rstrip("/") + "/v1",
             timeout=settings.timeout_s,
@@ -53,6 +57,17 @@ class ApiClient:
     def signed_in(self) -> bool:
         return self._token_getter() is not None
 
+    def forget_token(self, token: str) -> None:
+        """The API refused this saved token: forget it and note it for the tool result."""
+        if self._on_revoked:
+            self._on_revoked(token)
+        self._signed_out_by_revoke = True
+
+    def take_revoked(self) -> bool:
+        """True once after a request found the saved sign-in revoked or expired."""
+        flag, self._signed_out_by_revoke = self._signed_out_by_revoke, False
+        return flag
+
     async def _request(
         self,
         method: str,
@@ -62,9 +77,30 @@ class ApiClient:
         download: bool = False,
         params: dict[str, Any] | None = None,
         json: Any = None,
+        signed_out_retry: bool = True,
+    ) -> httpx.Response:
+        token = self._token_getter() if auth else None
+        resp = await self._send(method, path, token, params=params, json=json)
+        if resp.status_code == 401 and token and signed_out_retry:
+            # The saved sign-in was revoked or expired: forget it and ask once more
+            # signed out. That request carries no token, so this can't loop.
+            self.forget_token(token)
+            token = None
+            resp = await self._send(method, path, None, params=params, json=json)
+        if resp.is_success:
+            return resp
+        raise from_response(resp, signed_in=bool(token), download=download)
+
+    async def _send(
+        self,
+        method: str,
+        path: str,
+        token: str | None,
+        *,
+        params: dict[str, Any] | None,
+        json: Any,
     ) -> httpx.Response:
         headers = {}
-        token = self._token_getter() if auth else None
         if token:
             headers["Authorization"] = f"Bearer {token}"
         if params:
@@ -76,9 +112,7 @@ class ApiClient:
             raise CommunityCADError(
                 "upstream_unavailable", "Couldn't reach CommunityCAD. Check the connection and try again later."
             ) from None
-        if resp.is_success:
-            return resp
-        raise from_response(resp, signed_in=bool(token), download=download)
+        return resp
 
     async def _json(self, method: str, path: str, **kw: Any) -> dict[str, Any]:
         resp = await self._request(method, path, **kw)
@@ -113,7 +147,7 @@ class ApiClient:
         return None, resp.json()
 
     async def revoke_current_token(self) -> None:
-        await self._request("DELETE", "/auth/tokens/current")
+        await self._request("DELETE", "/auth/tokens/current", signed_out_retry=False)
 
     # -- account -----------------------------------------------------------
 

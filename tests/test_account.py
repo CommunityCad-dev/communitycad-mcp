@@ -195,3 +195,46 @@ async def test_poll_hiccup_keeps_waiting(run, api_mock):
     second = await run.ok("link_account", {"wait": True})
     assert second["status"] == "pending"
     assert (await run.ok("link_account"))["status"] == "linked"
+
+
+SIGNED_OUT_NOTE = (
+    "Your CommunityCAD sign-in was revoked or expired; you're signed out now. Run link_account to sign in again."
+)
+
+
+def revoked_then(body):
+    """401 for a request with a token; `body` for one without."""
+
+    def answer(request):
+        if "Authorization" in request.headers:
+            return httpx.Response(401, json={"detail": "Invalid or revoked token"})
+        return httpx.Response(200, json=body)
+
+    return answer
+
+
+async def test_account_status_revoked_signs_out(run, api_mock, signed_in, settings):
+    route = api_mock.get(f"{V1}/account/status").mock(side_effect=revoked_then(fixture("account_status_signed_out.json")))
+    out = await run.ok("account_status")
+    assert route.call_count == 2 and "Authorization" not in route.calls[1].request.headers
+    assert TokenStore(settings.token_path).load() is None
+    assert out["signed_in"] is False and out["note"] == SIGNED_OUT_NOTE
+    assert out["message"].startswith(SIGNED_OUT_NOTE + " Not signed in; the signed-out limit applies.")
+    # One time only: the next call is a plain signed-out answer.
+    again = await run.ok("account_status")
+    assert "note" not in again and route.call_count == 3
+
+
+async def test_unlink_after_revoke_does_not_retry(run, api_mock, signed_in, settings):
+    route = api_mock.delete(f"{V1}/auth/tokens/current").respond(401, json={"detail": "Invalid or revoked token"})
+    out = await run.ok("unlink_account")
+    assert route.call_count == 1 and out["status"] == "unlinked" and "note" not in out
+
+
+async def test_account_status_signed_out_answer_to_a_token_signs_out(run, api_mock, signed_in, settings):
+    # The status route may answer a dead token as signed out rather than with a 401.
+    route = api_mock.get(f"{V1}/account/status").respond(200, json=fixture("account_status_signed_out.json"))
+    out = await run.ok("account_status")
+    assert route.call_count == 1 and route.calls[0].request.headers["Authorization"] == f"Bearer {TOKEN}"
+    assert TokenStore(settings.token_path).load() is None
+    assert out["signed_in"] is False and out["note"] == SIGNED_OUT_NOTE
