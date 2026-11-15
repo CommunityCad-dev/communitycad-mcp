@@ -390,3 +390,52 @@ def register(mcp, api: ApiClient, settings: Settings, tool_errors, model_ref) ->
             "uploads_left_today": data.get("uploads_left_today"),
             "message": f"Added {n} {noun}{'s' if n != 1 else ''} to {url}.{_left(data)}",
         }
+
+    @tool(annotations=EDIT)
+    @tool_errors
+    async def edit_model(
+        model_id: Annotated[str, Field(description="The user's own model (id or page URL).")],
+        title: Annotated[str | None, Field(min_length=3, max_length=200)] = None,
+        description: Annotated[str | None, Field(max_length=5000)] = None,
+        readme_markdown: Annotated[str | None, Field(description="The whole new README (same sections as upload_model).", max_length=100_000)] = None,
+        tags: Annotated[list[str] | None, Field(description="Replaces the tags.", max_length=20)] = None,
+        license: Annotated[str | None, Field(description="SPDX id the user chose: " + ", ".join(LICENSES) + ".")] = None,
+        visibility: Annotated[Visibility | None, Field(description="The user's choice.")] = None,
+    ) -> dict:
+        """Change details of the user's own model: title, description, README, tags, licence,
+        visibility. Only after the user's explicit yes to the exact change. Doesn't use an
+        upload. Nothing can be deleted with these tools."""
+        ref = model_ref(model_id)
+        body: dict[str, Any] = {}
+        if title is not None:
+            body["title"] = title.strip()
+        if description is not None:
+            body["description"] = description.strip()
+        if readme_markdown is not None:
+            body["readme_markdown"] = readme_markdown.strip()
+        if tags is not None:
+            body["tags"] = [t.strip() for t in tags if t.strip()]
+        if license is not None and license.strip():
+            body["license"] = license.strip()
+        if visibility is not None:
+            body["visibility"] = visibility
+        if not body:
+            raise CommunityCADError("invalid_request", "Nothing to change: pass at least one field.")
+        missing = (description_missing(description) if description is not None else []) + (
+            readme_missing(readme_markdown) if readme_markdown is not None else []
+        )
+        if missing:
+            raise documentation_error(missing)
+        if visibility == "public" and "license" not in body:
+            try:
+                current = await api.model(ref)
+            except CommunityCADError:
+                current = None  # let the API decide
+            if current is not None and not current.get("license_name"):
+                raise license_error()
+        data = await api.edit_model(ref, body)
+        out = {k: data.get(k) for k in ("id", "uuid", "visibility", "license")}
+        out["page_url"] = page(data) or settings.model_url(ref)
+        out["changed"] = sorted(body)
+        out["message"] = f"Updated {', '.join(out['changed'])}: {out['page_url']}."
+        return {k: v for k, v in out.items() if v is not None}

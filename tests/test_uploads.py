@@ -342,3 +342,32 @@ async def test_add_files_wrong_type_or_count_refused_locally(run, api_mock, uplo
     err = await run.err("add_images", {"model_id": UUID, "paths": [str(files / "photo.png")], "captions": ["a", "b"]})
     assert err["code"] == "invalid_request" and "one caption per file" in err["message"]
     no_requests(api_mock)
+
+
+async def test_edit_model(run, api_mock, uploader):
+    route = api_mock.patch(f"{V1}/models/{UUID}").respond(200, json=fixture("model_edited.json"))
+    out = await run.ok("edit_model", {"model_id": UUID, "visibility": "public", "license": "CC-BY-4.0", "tags": ["din"]})
+    assert json.loads(route.calls[0].request.content) == {"visibility": "public", "license": "CC-BY-4.0", "tags": ["din"]}
+    assert out["changed"] == ["license", "tags", "visibility"] and out["license"] == "CC-BY-4.0"
+    assert "uploads_left_today" not in out  # edits don't use an upload
+
+
+async def test_edit_model_local_checks(run, api_mock, uploader):
+    err = await run.err("edit_model", {"model_id": UUID})
+    assert err["code"] == "invalid_request"
+    err = await run.err("edit_model", {"model_id": UUID, "description": "Short."})
+    assert err["code"] == "documentation_missing"
+    no_requests(api_mock)
+    # Making public without a licence: refused when the model has none.
+    api_mock.get(f"{V1}/catalog/models/{UUID}").respond(200, json={"uuid": UUID, "license_name": None})
+    patch = api_mock.patch(f"{V1}/models/{UUID}").respond(200, json=fixture("model_edited.json"))
+    err = await run.err("edit_model", {"model_id": UUID, "visibility": "public"})
+    assert err["code"] == "license_required" and not patch.called
+
+
+async def test_edit_model_licence_locked(run, api_mock, uploader):
+    api_mock.patch(f"{V1}/models/{UUID}").respond(
+        409, json={"error": "license_locked", "detail": "The licence comes from the LICENSE file in the model's ZIP; change it there."}
+    )
+    err = await run.err("edit_model", {"model_id": UUID, "license": "MIT"})
+    assert err["code"] == "conflict" and "LICENSE file" in err["message"]

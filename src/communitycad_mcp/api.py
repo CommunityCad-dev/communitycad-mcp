@@ -249,6 +249,9 @@ class ApiClient:
             "POST", f"/models/{model_id}/datasheets", json={"datasheets": datasheets}, signed_out_retry=False
         )
 
+    async def edit_model(self, model_id: str, body: dict[str, Any]) -> dict[str, Any]:
+        return await self._json("PATCH", f"/models/{model_id}", json=body, signed_out_retry=False)
+
     # -- datasheets ----------------------------------------------------------
 
     async def datasheets(self, model_id: str) -> dict[str, Any]:
