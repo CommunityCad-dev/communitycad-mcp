@@ -67,3 +67,13 @@ def test_credit_without_naming_the_operator():
     assert "give the `attribution` line from the tool result" in flat
     assert "Don't name the company or people that run CommunityCAD" in flat
     assert "unless the user asks" in flat
+
+
+def test_upload_rules_are_stated():
+    flat = " ".join(INSTRUCTIONS.split())
+    assert "explicit yes in this conversation" in flat
+    assert "public or private" in flat and "never pick one yourself" in flat
+    assert "18+" in flat and "firearm" in flat
+    assert "never invent dimensions" in flat and "datasheet when it has one" in flat
+    assert "uploads are left today" in flat and "can't delete anything" in flat
+    assert "upload draft" not in flat

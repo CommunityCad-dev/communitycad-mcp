@@ -70,6 +70,7 @@ All optional, as environment variables:
 - **Datasheets:** `list_datasheets`, `read_datasheet`, `search_datasheet`
 - **Community (read-only):** `get_comments`, `get_scores`
 - **Download:** `check_download`, `download_file` (optionally extracts one file from a ZIP). Works signed out, within the signed-out limit.
+- **Uploads (once the CommunityCAD API offers them):** `upload_model` (a file or folder, public or private), `upload_version`, `add_images`, `add_datasheets`, `edit_model`. They need your permission once (`link_account` with `allow_uploads=true`), follow the website's daily upload limit and moderation, and can't delete anything. The agent asks before every upload and lets you choose the visibility, licence and 18+ setting.
 
 Prompts: `find-a-part`, `review-a-model`. Resources: `communitycad://model/{id}/readme`, `communitycad://model/{id}/datasheet/{n}`.
 
@@ -84,7 +85,7 @@ Every download comes with the model's licence and, where the licence needs one, 
 - Your sign-in token is stored in your user config directory, readable only by you, and never appears in tool output or logs.
 - The server sees only what your account can see on the site.
 - Comments, READMEs and datasheet text are written by other people. The server hands them to the agent as marked, untrusted content, never as instructions.
-- Agents can't post comments or ratings through this server.
+- Agents can't post comments or ratings through this server. They upload or edit models only after you say yes, and never delete anything.
 
 ## Development
 
