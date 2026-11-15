@@ -348,3 +348,45 @@ def register(mcp, api: ApiClient, settings: Settings, tool_errors, model_ref) ->
         }
         out["message"] = f"Uploaded version {out['version_number']}: {out['page_url']}.{_left(data)}"
         return {k: v for k, v in out.items() if v is not None}
+
+    @tool(annotations=WRITE)
+    @tool_errors
+    async def add_images(
+        model_id: Annotated[str, Field(description="The user's own model (id or page URL).")],
+        paths: Annotated[list[str], Field(description="JPEG, PNG, GIF or WebP pictures.", min_length=1, max_length=MAX_IMAGES)],
+        captions: Annotated[list[str] | None, Field(description="One caption per image, or none.")] = None,
+    ) -> dict:
+        """Add pictures to the user's own model. Only after the user's explicit yes. Uses one of
+        the day's uploads (one per call, not per picture)."""
+        ref = model_ref(model_id)
+        images = _typed_files(paths, IMAGE_TYPES, "image", "Images")
+        caps = _optional_list(captions, len(images), "caption")
+        staged = [await stage(api, p) for p in images]
+        data = await api.add_images(ref, [{"staged_upload": s.ticket, "caption": c} for s, c in zip(staged, caps)])
+        return _added(data, ref, "picture")
+
+    @tool(annotations=WRITE)
+    @tool_errors
+    async def add_datasheets(
+        model_id: Annotated[str, Field(description="The user's own model (id or page URL).")],
+        paths: Annotated[list[str], Field(description="PDF datasheets.", min_length=1, max_length=MAX_DATASHEETS)],
+        titles: Annotated[list[str] | None, Field(description="One title per datasheet, or none.")] = None,
+    ) -> dict:
+        """Attach PDF datasheets to the user's own model (their text becomes searchable after a
+        few minutes). Only after the user's explicit yes. Uses one of the day's uploads per call."""
+        ref = model_ref(model_id)
+        sheets = _typed_files(paths, DATASHEET_TYPES, "datasheet", "Datasheets")
+        names = _optional_list(titles, len(sheets), "datasheet title")
+        staged = [await stage(api, p) for p in sheets]
+        data = await api.add_datasheets(ref, [{"staged_upload": s.ticket, "title": t} for s, t in zip(staged, names)])
+        return _added(data, ref, "datasheet")
+
+    def _added(data: dict[str, Any], ref: str, noun: str) -> dict:
+        n = data.get("added")
+        url = settings.model_url(ref)
+        return {
+            "added": n,
+            "page_url": url,
+            "uploads_left_today": data.get("uploads_left_today"),
+            "message": f"Added {n} {noun}{'s' if n != 1 else ''} to {url}.{_left(data)}",
+        }

@@ -313,3 +313,32 @@ async def test_upload_version_synced_model(run, api_mock, uploader, files):
         "upload_version", {"model_id": UUID, "path": str(files / "clip.step"), "notes": "Thicker walls, 2.4 mm now."}
     )
     assert err["code"] == "conflict" and "GitHub" in err["message"]
+
+
+async def test_add_images_and_datasheets(run, api_mock, uploader, files):
+    stage, put = staging(api_mock)
+    (files / "side.jpg").write_bytes(b"\xff\xd8 example")
+    images = api_mock.post(f"{V1}/models/{UUID}/images").respond(201, json=fixture("images_added.json"))
+    out = await run.ok(
+        "add_images",
+        {"model_id": UUID, "paths": [str(files / "photo.png"), str(files / "side.jpg")], "captions": ["Front", "Side"]},
+    )
+    assert out["added"] == 2 and "7 uploads left today" in out["message"]
+    assert json.loads(images.calls[0].request.content) == {
+        "images": [{"staged_upload": "stg_example_1", "caption": "Front"}, {"staged_upload": "stg_example_2", "caption": "Side"}]
+    }
+    sheets = api_mock.post(f"{V1}/models/{UUID}/datasheets").respond(201, json=fixture("datasheets_added.json"))
+    out = await run.ok("add_datasheets", {"model_id": UUID, "paths": [str(files / "sheet.pdf")], "titles": ["Rail spec"]})
+    assert out["added"] == 1 and out["uploads_left_today"] == 6 and "1 datasheet to" in out["message"]
+    assert json.loads(sheets.calls[0].request.content) == {"datasheets": [{"staged_upload": "stg_example_3", "title": "Rail spec"}]}
+    assert put.call_count == 3
+
+
+async def test_add_files_wrong_type_or_count_refused_locally(run, api_mock, uploader, files):
+    err = await run.err("add_images", {"model_id": UUID, "paths": [str(files / "clip.step")]})
+    assert err["code"] == "invalid_request"
+    err = await run.err("add_datasheets", {"model_id": UUID, "paths": [str(files / "photo.png")]})
+    assert err["code"] == "invalid_request"
+    err = await run.err("add_images", {"model_id": UUID, "paths": [str(files / "photo.png")], "captions": ["a", "b"]})
+    assert err["code"] == "invalid_request" and "one caption per file" in err["message"]
+    no_requests(api_mock)

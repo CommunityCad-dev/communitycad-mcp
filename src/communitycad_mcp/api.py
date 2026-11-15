@@ -241,6 +241,14 @@ class ApiClient:
     async def create_version(self, model_id: str, body: dict[str, Any]) -> dict[str, Any]:
         return await self._json("POST", f"/models/{model_id}/versions", json=body, signed_out_retry=False)
 
+    async def add_images(self, model_id: str, images: list[dict[str, Any]]) -> dict[str, Any]:
+        return await self._json("POST", f"/models/{model_id}/images", json={"images": images}, signed_out_retry=False)
+
+    async def add_datasheets(self, model_id: str, datasheets: list[dict[str, Any]]) -> dict[str, Any]:
+        return await self._json(
+            "POST", f"/models/{model_id}/datasheets", json={"datasheets": datasheets}, signed_out_retry=False
+        )
+
     # -- datasheets ----------------------------------------------------------
 
     async def datasheets(self, model_id: str) -> dict[str, Any]:
