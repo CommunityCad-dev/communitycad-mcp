@@ -2,7 +2,7 @@
 
 An [MCP](https://modelcontextprotocol.io) server that lets AI agents use [CommunityCAD](https://communitycad.dev) the way a person does: search real, dimensionally accurate parts, read their datasheets, comments and accuracy scores, and download the CAD files into a design.
 
-> **Status: in development.** Not on PyPI yet.
+> **Status: beta.** On [PyPI](https://pypi.org/project/communitycad-mcp/) as `communitycad-mcp`. Changes are listed in the [changelog](https://github.com/CommunityCad-dev/communitycad-mcp/blob/main/CHANGELOG.md).
 
 ## What it's for
 
@@ -20,7 +20,7 @@ It works with any MCP-capable agent and any CAD tool that can open the downloade
 
 ## Setup (local)
 
-You need [uv](https://docs.astral.sh/uv/). The package isn't on PyPI yet; until it is, run it from a checkout of this repository by replacing `uvx communitycad-mcp` below with `uv run --directory /path/to/communitycad-mcp communitycad-mcp`.
+You need [uv](https://docs.astral.sh/uv/) (Python 3.10 or newer; uv fetches one if needed). To run an unreleased checkout instead, replace `uvx communitycad-mcp` below with `uv run --directory /path/to/communitycad-mcp communitycad-mcp`.
 
 **Claude Code**
 
@@ -98,4 +98,4 @@ Tests run against recorded, scrubbed API responses in `tests/fixtures/`; nothing
 
 ## Licence
 
-Apache-2.0. See [LICENSE](LICENSE). Models on CommunityCAD carry their own licences, set by their creators.
+Apache-2.0. See [LICENSE](https://github.com/CommunityCad-dev/communitycad-mcp/blob/main/LICENSE). Models on CommunityCAD carry their own licences, set by their creators.
