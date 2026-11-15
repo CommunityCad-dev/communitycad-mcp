@@ -4,6 +4,10 @@ An [MCP](https://modelcontextprotocol.io) server that lets AI agents use [Commun
 
 > **Status: beta.** On [PyPI](https://pypi.org/project/communitycad-mcp/) as `communitycad-mcp`. Changes are listed in the [changelog](https://github.com/CommunityCad-dev/communitycad-mcp/blob/main/CHANGELOG.md).
 
+[![CommunityCAD MCP in SolidCraft: find a part, read its datasheet, download it and place it in a design](https://img.youtube.com/vi/_drNAL4Haj0/maxresdefault.jpg)](https://youtu.be/_drNAL4Haj0)
+
+*Demo: CommunityCAD MCP in [SolidCraft](https://github.com/tangency-labs/solidcraft), from search to a placed part. [Watch on YouTube](https://youtu.be/_drNAL4Haj0).*
+
 ## What it's for
 
 You're designing an enclosure and need a 24 V power supply that fits. Ask your agent, and it can find one with a STEP file, read the mounting-hole spacing from its datasheet, check what other people said about the fit, then save the file where your CAD tool can insert it.
