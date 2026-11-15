@@ -24,6 +24,7 @@ from pydantic import Field
 from .api import ApiClient
 from .config import Settings
 from .errors import CommunityCADError
+from .tooling import titled_tool
 
 MAX_FILE_BYTES = 250 * 1024 * 1024
 MIN_DESCRIPTION = 80
@@ -262,12 +263,12 @@ Visibility = Literal["public", "private"]
 
 
 def register(mcp, api: ApiClient, settings: Settings, tool_errors, model_ref) -> None:
-    tool = mcp.tool
+    tool = titled_tool(mcp)
 
     def page(data: dict[str, Any]) -> str | None:
         return data.get("page_url") or (settings.model_url(data["uuid"]) if data.get("uuid") else None)
 
-    @tool(annotations=WRITE)
+    @tool(title="Upload a model", annotations=WRITE)
     @tool_errors
     async def upload_model(
         path: Annotated[str, Field(description="The CAD file, or a folder to upload as a ZIP (hidden files, .venv, node_modules and __pycache__ are left out).")],
@@ -336,7 +337,7 @@ def register(mcp, api: ApiClient, settings: Settings, tool_errors, model_ref) ->
         out["message"] = f"Uploaded as a {data.get('visibility', visibility)} model: {out['page_url']}.{processing}{_left(data)}"
         return {k: v for k, v in out.items() if v is not None}
 
-    @tool(annotations=WRITE)
+    @tool(title="Upload a new version", annotations=WRITE)
     @tool_errors
     async def upload_version(
         model_id: Annotated[str, Field(description="The user's own model (id or page URL).")],
@@ -377,7 +378,7 @@ def register(mcp, api: ApiClient, settings: Settings, tool_errors, model_ref) ->
         out["message"] = f"Uploaded version {out['version_number']}: {out['page_url']}.{_left(data)}"
         return {k: v for k, v in out.items() if v is not None}
 
-    @tool(annotations=WRITE)
+    @tool(title="Add images", annotations=WRITE)
     @tool_errors
     async def add_images(
         model_id: Annotated[str, Field(description="The user's own model (id or page URL).")],
@@ -394,7 +395,7 @@ def register(mcp, api: ApiClient, settings: Settings, tool_errors, model_ref) ->
         data = await api.add_images(ref, [{"staged_upload": s.ticket, "caption": c} for s, c in zip(staged, caps)])
         return _added(data, ref, "picture")
 
-    @tool(annotations=WRITE)
+    @tool(title="Add datasheets", annotations=WRITE)
     @tool_errors
     async def add_datasheets(
         model_id: Annotated[str, Field(description="The user's own model (id or page URL).")],
@@ -421,7 +422,7 @@ def register(mcp, api: ApiClient, settings: Settings, tool_errors, model_ref) ->
             "message": f"Added {n} {noun}{'s' if n != 1 else ''} to {url}.{_left(data)}",
         }
 
-    @tool(annotations=EDIT)
+    @tool(title="Edit a model", annotations=EDIT)
     @tool_errors
     async def edit_model(
         model_id: Annotated[str, Field(description="The user's own model (id or page URL).")],

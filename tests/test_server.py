@@ -26,6 +26,19 @@ async def test_tool_list(settings):
         assert not any(w in t.name for t in tools for w in ("delete", "remove"))
 
 
+async def test_every_tool_has_a_title_and_safety_hints(settings):
+    async with Client(build_server(settings)) as c:
+        tools = (await c.list_tools()).tools
+    for t in tools:
+        assert t.title and t.title[0].isupper() and "_" not in t.title, t.name
+        a = t.annotations
+        assert a is not None and a.title == t.title, t.name
+        assert a.read_only_hint is True or a.destructive_hint is not None, t.name
+    titles = {t.name: t.title for t in tools}
+    assert titles["search_models"] == "Search models" and titles["upload_model"] == "Upload a model"
+    assert len(set(titles.values())) == len(titles)
+
+
 async def test_instructions(settings):
     async with Client(build_server(settings)) as c:
         info = c.initialize_result if hasattr(c, "initialize_result") else None

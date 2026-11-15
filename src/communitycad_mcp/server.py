@@ -21,6 +21,7 @@ from .download import extract_member, model_dir, remaining_from_headers, safe_na
 from .errors import CommunityCADError
 from .formatting import card, licence_info, model_detail, page_url
 from .token_store import TokenStore
+from .tooling import titled_tool
 
 INSTRUCTIONS = """\
 CommunityCAD (communitycad.dev) hosts real parts to design around: vendor components, \
@@ -130,11 +131,11 @@ def build_server(
         website_url=settings.site_url,
         version=__version__,
     )
-    tool = mcp.tool
+    tool = titled_tool(mcp)
 
     # -- account ----------------------------------------------------------------
 
-    @tool(annotations=ToolAnnotations(readOnlyHint=False, openWorldHint=True))
+    @tool(title="Link your CommunityCAD account", annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, openWorldHint=True))
     @_tool_errors
     async def link_account(
         ctx: Context,
@@ -154,13 +155,13 @@ def build_server(
         them to approve just that permission (call again to finish, like the first link)."""
         return await linker.link(wait=wait, device_name=device_name(_client_name(ctx)), allow_uploads=allow_uploads)
 
-    @tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, openWorldHint=True))
+    @tool(title="Unlink your CommunityCAD account", annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, openWorldHint=True))
     @_tool_errors
     async def unlink_account() -> dict:
         """Sign out: revoke this computer's CommunityCAD sign-in and delete it locally."""
         return await linker.unlink()
 
-    @tool(annotations=READ_ONLY)
+    @tool(title="Account and downloads left", annotations=READ_ONLY)
     @_tool_errors
     async def account_status() -> dict:
         """Whether a CommunityCAD account is linked, the plan, downloads left today and this
@@ -205,7 +206,7 @@ def build_server(
 
     # -- discovery --------------------------------------------------------------
 
-    @tool(annotations=READ_ONLY)
+    @tool(title="Search models", annotations=READ_ONLY)
     @_tool_errors
     async def search_models(
         query: Annotated[str, Field(description="What to look for, e.g. '24V enclosed power supply'.", max_length=200)] = "",
@@ -257,7 +258,7 @@ def build_server(
             out["next_offset"] = offset + len(items)
         return out
 
-    @tool(annotations=READ_ONLY)
+    @tool(title="Get model details", annotations=READ_ONLY)
     @_tool_errors
     async def get_model(
         model_id: Annotated[str, Field(description="The model's id (uuid) from search results or its page URL.")],
@@ -270,7 +271,7 @@ def build_server(
 
     # -- download ---------------------------------------------------------------
 
-    @tool(annotations=READ_ONLY)
+    @tool(title="Check a download", annotations=READ_ONLY)
     @_tool_errors
     async def check_download(
         model_id: str,
@@ -286,7 +287,7 @@ def build_server(
         out["message"] = _check_message(data, signed_in=api.signed_in)
         return out
 
-    @tool(annotations=ToolAnnotations(readOnlyHint=False, idempotentHint=False, openWorldHint=True))
+    @tool(title="Download a file", annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True))
     @_tool_errors
     async def download_file(
         model_id: str,

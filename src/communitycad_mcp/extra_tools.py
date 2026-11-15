@@ -12,6 +12,7 @@ from .api import ApiClient
 from .config import Settings
 from .errors import CommunityCADError
 from .formatting import USER_CONTENT_NOTE, card
+from .tooling import titled_tool
 
 READ_ONLY = ToolAnnotations(readOnlyHint=True, openWorldHint=True)
 SCORE_DIMENSIONS = ("dimensional", "printability", "manufacturability", "documentation", "compatibility")
@@ -26,7 +27,7 @@ def register(
     model_ref: Callable[[str], str],
     pages_text: Callable[[list[dict[str, Any]]], str],
 ) -> None:
-    tool = mcp.tool
+    tool = titled_tool(mcp)
 
     def links(ref: str, data: dict[str, Any]) -> dict[str, Any]:
         out = {"model_url": data.get("model_url") or settings.model_url(ref)}
@@ -37,7 +38,7 @@ def register(
 
     # -- datasheets ---------------------------------------------------------------
 
-    @tool(annotations=READ_ONLY)
+    @tool(title="List datasheets", annotations=READ_ONLY)
     @tool_errors
     async def list_datasheets(model_id: str) -> dict:
         """A model's datasheets: file name, pages, size, whether OCR text is available, and
@@ -58,7 +59,7 @@ def register(
         ]
         return {"model_url": data.get("model_url") or settings.model_url(ref), "datasheets": sheets}
 
-    @tool(annotations=READ_ONLY)
+    @tool(title="Read a datasheet", annotations=READ_ONLY)
     @tool_errors
     async def read_datasheet(
         model_id: str,
@@ -84,7 +85,7 @@ def register(
             "user_content": {"note": USER_CONTENT_NOTE, "text": pages_text(pages)},
         }
 
-    @tool(annotations=READ_ONLY)
+    @tool(title="Search a datasheet", annotations=READ_ONLY)
     @tool_errors
     async def search_datasheet(
         model_id: str,
@@ -138,7 +139,7 @@ def register(
             out["reply_count"] = c.get("reply_count", len(out["replies"]))
         return out
 
-    @tool(annotations=READ_ONLY)
+    @tool(title="Read comments", annotations=READ_ONLY)
     @tool_errors
     async def get_comments(
         model_id: str,
@@ -163,7 +164,7 @@ def register(
             out["next_offset"] = offset + len(items)
         return out
 
-    @tool(annotations=READ_ONLY)
+    @tool(title="Get accuracy scores", annotations=READ_ONLY)
     @tool_errors
     async def get_scores(model_id: str) -> dict:
         """Community accuracy scores in five dimensions (dimensional, printability,
@@ -189,7 +190,7 @@ def register(
         total = page.get("total") if isinstance(page, dict) else len(items)
         return {"total": total, "items": [card(m, settings) for m in items]}
 
-    @tool(annotations=READ_ONLY)
+    @tool(title="Get a company", annotations=READ_ONLY)
     @tool_errors
     async def get_company(
         slug: Annotated[str, Field(description="The company's slug (from search_companies or a model) or id.")],
@@ -210,7 +211,7 @@ def register(
             "models": models_page(data),
         }
 
-    @tool(annotations=READ_ONLY)
+    @tool(title="Search companies", annotations=READ_ONLY)
     @tool_errors
     async def search_companies(
         query: Annotated[str, Field(max_length=200)] = "",
@@ -233,7 +234,7 @@ def register(
             ],
         }
 
-    @tool(annotations=READ_ONLY)
+    @tool(title="Get a creator", annotations=READ_ONLY)
     @tool_errors
     async def get_creator(
         username: str,
@@ -257,7 +258,7 @@ def register(
             out["donate_url"] = data["donation_url"]
         return out
 
-    @tool(annotations=READ_ONLY)
+    @tool(title="Find similar models", annotations=READ_ONLY)
     @tool_errors
     async def find_similar(model_id: str, limit: Annotated[int, Field(ge=1, le=25)] = 10) -> dict:
         """Public models most similar to this one, closest first. Empty when the model

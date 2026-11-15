@@ -21,6 +21,7 @@ from PIL import Image, UnidentifiedImageError
 from .api import ApiClient
 from .config import Settings
 from .formatting import USER_CONTENT_NOTE, _untrusted, page_url
+from .tooling import titled_tool
 
 MAX_SIDE = 1024
 MAX_SOURCE_BYTES = 15 * 1024 * 1024  # one fetched image, before downscaling
@@ -82,7 +83,9 @@ def register(
     tool_errors: Callable,
     model_ref: Callable[[str], str],
 ) -> None:
-    @mcp.tool(annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=True))
+    tool = titled_tool(mcp)
+
+    @tool(title="Show model images", annotations=ToolAnnotations(readOnlyHint=True, openWorldHint=True))
     @tool_errors
     async def show_images(
         model_id: Annotated[str, Field(description="The model's id (uuid) or page URL.")],
