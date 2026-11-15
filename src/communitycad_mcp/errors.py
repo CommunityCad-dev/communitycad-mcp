@@ -31,6 +31,7 @@ CODES = {
     "license_required",
     "upload_limit_reached",
     "conflict",
+    "model_processing",
 }
 
 # Extra fields from an API error body that are safe and useful to pass on.

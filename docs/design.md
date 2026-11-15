@@ -93,7 +93,7 @@ Documentation is required and checked before anything is sent, with the same rul
 
 - Untrusted content in fields named `untrusted_text` (or under `user_content`), never mixed into the tool's own message.
 - API rate limits apply; page conservatively, never loop on errors.
-- Typed errors (code plus a plain sentence): `not_signed_in`, `sign_in_required_for_download`, `download_limit_reached` (remaining counts, reset time, plans link, and sign-up link when signed out), `scope_missing`, `model_not_found`, `model_unavailable`, `rate_limited`, `file_too_large`, `upstream_unavailable`; for uploads `documentation_missing` (the `missing` list), `license_required` (the licence list), `upload_limit_reached` (reset time) and `conflict` (the change belongs elsewhere, e.g. the model's GitHub repository).
+- Typed errors (code plus a plain sentence): `not_signed_in`, `sign_in_required_for_download`, `download_limit_reached` (remaining counts, reset time, plans link, and sign-up link when signed out), `scope_missing`, `model_not_found`, `model_unavailable`, `rate_limited`, `file_too_large`, `upstream_unavailable`, `model_processing` (the latest version's files are still being processed; try again in a few seconds); for uploads `documentation_missing` (the `missing` list), `license_required` (the licence list), `upload_limit_reached` (reset time, `uploads_reset_at` when refused before staging) and `conflict` (the change belongs elsewhere, e.g. the model's GitHub repository).
 - Minimal scopes: `catalog:read` and `download`; `models:write` only when the user allows uploads. No comment or score write scopes.
 - Tokens never in tool output, logs or errors.
 

@@ -145,6 +145,17 @@ async def test_several_files_need_file_id(run, api_mock, signed_in):
     assert err["code"] == "invalid_request" and len(err["files"]) == 3
 
 
+async def test_version_still_processing(run, api_mock, signed_in):
+    model = {**fixture("model_detail.json"), "files": []}
+    api_mock.get(f"{V1}/catalog/models/{UUID}").respond(200, json=model)
+    issue = api_mock.post(url__regex=r".*/download-url$")
+    for args in ({"model_id": UUID}, {"model_id": UUID, "file_id": 155}):
+        err = await run.err("download_file", args)
+        assert err["code"] == "model_processing"
+        assert err["message"] == "This model's new version is still being processed; try again in a few seconds."
+    assert not issue.called
+
+
 async def test_failed_transfer_leaves_no_partial_file(run, api_mock, signed_in, settings):
     mock_model(api_mock)
     api_mock.post(f"{V1}/catalog/models/{UUID}/files/155/download-url").respond(200, json=fixture("download_url.json"))

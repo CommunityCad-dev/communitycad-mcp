@@ -301,6 +301,11 @@ def build_server(
         ref = _model_ref(model_id)
         model = await api.model(ref)
         files = model.get("files") or []
+        if not files:
+            raise CommunityCADError(
+                "model_processing",
+                "This model's new version is still being processed; try again in a few seconds.",
+            )
         if file_id is None:
             if len(files) != 1:
                 raise CommunityCADError(
