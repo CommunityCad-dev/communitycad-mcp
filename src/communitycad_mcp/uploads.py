@@ -222,6 +222,32 @@ async def stage(api: ApiClient, path: Path) -> Staged:
     return Staged(ticket=ticket["staged_upload"], name=path.name)
 
 
+async def check_uploads_left(api: ApiClient) -> None:
+    """Refuse locally, before anything is staged, when no uploads are left today.
+
+    Account status carries `uploads_left_today` (an integer when this sign-in can
+    upload, null otherwise). Older servers leave it out; then the API's own
+    refusal is the check.
+    """
+    if not api.signed_in:
+        return
+    try:
+        status = await api.account_status()
+    except CommunityCADError as exc:
+        if exc.code == "not_signed_in":
+            raise
+        return  # the upload call itself will say what's wrong
+    left = status.get("uploads_left_today")
+    if isinstance(left, int) and not isinstance(left, bool) and left <= 0:
+        raise CommunityCADError(
+            "upload_limit_reached",
+            "No uploads are left today (the same limit as on the website). Nothing was uploaded. "
+            "Don't retry; it resets at uploads_reset_at.",
+            remaining=0,
+            uploads_reset_at=status.get("uploads_reset_at"),
+        )
+
+
 def _left(data: dict[str, Any]) -> str:
     left = data.get("uploads_left_today")
     return f" {left} upload{'s' if left != 1 else ''} left today." if isinstance(left, int) else ""
@@ -279,6 +305,7 @@ def register(mcp, api: ApiClient, settings: Settings, tool_errors, model_ref) ->
         captions = _optional_list(image_captions, len(images), "caption")
         sheets = _typed_files(datasheet_paths or [], DATASHEET_TYPES, "datasheet", "Datasheets")
         titles = _optional_list(datasheet_titles, len(sheets), "datasheet title")
+        await check_uploads_left(api)
 
         with ExitStack() as stack:
             if source.is_dir():
@@ -332,6 +359,7 @@ def register(mcp, api: ApiClient, settings: Settings, tool_errors, model_ref) ->
         if missing:
             raise documentation_error(missing)
         source = check_model_source(path)
+        await check_uploads_left(api)
         with ExitStack() as stack:
             if source.is_dir():
                 tmp = Path(stack.enter_context(tempfile.TemporaryDirectory(prefix="communitycad-")))
@@ -361,6 +389,7 @@ def register(mcp, api: ApiClient, settings: Settings, tool_errors, model_ref) ->
         ref = model_ref(model_id)
         images = _typed_files(paths, IMAGE_TYPES, "image", "Images")
         caps = _optional_list(captions, len(images), "caption")
+        await check_uploads_left(api)
         staged = [await stage(api, p) for p in images]
         data = await api.add_images(ref, [{"staged_upload": s.ticket, "caption": c} for s, c in zip(staged, caps)])
         return _added(data, ref, "picture")
@@ -377,6 +406,7 @@ def register(mcp, api: ApiClient, settings: Settings, tool_errors, model_ref) ->
         ref = model_ref(model_id)
         sheets = _typed_files(paths, DATASHEET_TYPES, "datasheet", "Datasheets")
         names = _optional_list(titles, len(sheets), "datasheet title")
+        await check_uploads_left(api)
         staged = [await stage(api, p) for p in sheets]
         data = await api.add_datasheets(ref, [{"staged_upload": s.ticket, "title": t} for s, t in zip(staged, names)])
         return _added(data, ref, "datasheet")

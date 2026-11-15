@@ -41,6 +41,12 @@ def uploader(settings):
     return tok
 
 
+@pytest.fixture(autouse=True)
+def account_status(api_mock):
+    """By default account status has no uploads_left_today, like an older server."""
+    return api_mock.get(f"{V1}/account/status").respond(200, json=fixture("account_status_signed_in.json"))
+
+
 @pytest.fixture
 def files(tmp_path):
     d = tmp_path / "work"
@@ -84,7 +90,7 @@ def model_args(files, **over):
 
 
 def no_requests(api_mock):
-    assert not [c for c in api_mock.calls], [str(c.request.url) for c in api_mock.calls]
+    assert not [c for c in api_mock.calls if not c.request.url.path.endswith("/account/status")], [str(c.request.url) for c in api_mock.calls]
 
 
 # -- local checks ------------------------------------------------------------------
@@ -140,6 +146,57 @@ async def test_bad_file_types_and_sizes_fail_locally(run, api_mock, uploader, fi
     err = await run.err("upload_model", model_args(files))
     assert err["code"] == "file_too_large" and "250 MB" in err["message"]
     no_requests(api_mock)
+
+
+# -- daily upload cap ---------------------------------------------------------------
+
+
+def at_cap(api_mock, left):
+    status = {**fixture("account_status_signed_in.json"), "uploads_left_today": left, "uploads_reset_at": "2026-11-15T00:00:00Z"}
+    return api_mock.get(f"{V1}/account/status").respond(200, json=status)
+
+
+@pytest.mark.parametrize(
+    "tool, args",
+    [
+        ("upload_model", None),
+        ("upload_version", {"notes": "Thicker walls, 2.4 mm now."}),
+        ("add_images", {"paths": ["photo.png"]}),
+        ("add_datasheets", {"paths": ["sheet.pdf"]}),
+    ],
+)
+async def test_no_uploads_left_stages_nothing(run, api_mock, uploader, files, tool, args):
+    status = at_cap(api_mock, 0)
+    stage, put = staging(api_mock)
+    if args is None:
+        args = model_args(files)
+    else:
+        args = {"model_id": UUID, **args}
+        if "paths" in args:
+            args["paths"] = [str(files / p) for p in args["paths"]]
+        else:
+            args["path"] = str(files / "clip.step")
+    err = await run.err(tool, args)
+    assert err["code"] == "upload_limit_reached" and "Nothing was uploaded" in err["message"]
+    assert err["uploads_reset_at"] == "2026-11-15T00:00:00Z" and err["remaining"] == 0
+    assert status.called and not stage.called and not put.called
+
+
+async def test_uploads_left_or_unknown_goes_ahead(run, api_mock, uploader, files):
+    stage, _ = staging(api_mock)
+    api_mock.post(f"{V1}/models/{UUID}/images").respond(201, json=fixture("images_added.json"))
+    for left in (1, None):  # None: this sign-in can't upload; the API decides
+        at_cap(api_mock, left)
+        await run.ok("add_images", {"model_id": UUID, "paths": [str(files / "photo.png")]})
+    assert stage.call_count == 2
+
+
+async def test_status_unavailable_falls_back_to_the_api(run, api_mock, uploader, files):
+    api_mock.get(f"{V1}/account/status").respond(503)
+    stage, _ = staging(api_mock)
+    api_mock.post(f"{V1}/models/{UUID}/images").respond(429, json=fixture("upload_limit_reached.json"))
+    err = await run.err("add_images", {"model_id": UUID, "paths": [str(files / "photo.png")]})
+    assert err["code"] == "upload_limit_reached" and stage.called
 
 
 # -- upload_model --------------------------------------------------------------------
