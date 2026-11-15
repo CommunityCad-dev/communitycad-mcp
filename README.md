@@ -20,15 +20,31 @@ It works with any MCP-capable agent and any CAD tool that can open the downloade
 
 ## Setup (local)
 
-You need [uv](https://docs.astral.sh/uv/) (Python 3.10 or newer; uv fetches one if needed). To run an unreleased checkout instead, replace `uvx communitycad-mcp` below with `uv run --directory /path/to/communitycad-mcp communitycad-mcp`.
+You need [uv](https://docs.astral.sh/uv/getting-started/installation/) (it fetches Python 3.10 or newer if needed). Then run:
+
+```bash
+uvx communitycad-mcp install
+```
+
+It finds Claude Code, Claude Desktop, Cursor, VS Code and Windsurf on Windows, macOS and Linux and adds CommunityCAD to each one, leaving your other servers alone and backing up every file it changes (`<file>.bak-<date>`). Restart the app, then ask: *find me an M8 screw with a STEP file*.
+
+| Command | What it does |
+|---|---|
+| `uvx communitycad-mcp install` | Set up every AI app it finds. `--app cursor` (or `claude-code`, `claude-desktop`, `vscode`, `windsurf`) sets up just that one, even if it wasn't found. `--dry-run` shows what would change. |
+| `uvx communitycad-mcp doctor` | Checks uv, the connection to CommunityCAD, your sign-in and which apps are set up, and says how to fix each problem. |
+| `uvx communitycad-mcp uninstall` | Removes only the CommunityCAD entry from each app. |
+
+Running `communitycad-mcp` with no command starts the server over stdio; that's how the apps launch it.
+
+<details><summary>Set it up by hand</summary>
 
 **Claude Code**
 
 ```bash
-claude mcp add communitycad -- uvx communitycad-mcp
+claude mcp add --scope user communitycad -- uvx communitycad-mcp
 ```
 
-**Claude Desktop** (Settings, Developer, Edit Config, then restart the app):
+**Claude Desktop, Cursor, Windsurf** (`claude_desktop_config.json`, `~/.cursor/mcp.json`, `~/.codeium/windsurf/mcp_config.json`):
 
 ```json
 {
@@ -41,7 +57,11 @@ claude mcp add communitycad -- uvx communitycad-mcp
 }
 ```
 
-Other MCP clients: run `uvx communitycad-mcp` as a stdio server.
+**VS Code** (user `mcp.json`): the same entry under `"servers"`, with `"type": "stdio"`.
+
+Other MCP clients: run `uvx communitycad-mcp` as a stdio server. To run an unreleased checkout instead, run `uv run --directory /path/to/communitycad-mcp communitycad-mcp install --from-path /path/to/communitycad-mcp`, or replace `uvx communitycad-mcp` with `uv run --directory /path/to/communitycad-mcp communitycad-mcp`.
+
+</details>
 
 **Check it with MCP Inspector:**
 
