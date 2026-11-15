@@ -26,6 +26,12 @@ def fixture(name: str) -> Any:
     raise FileNotFoundError(name)
 
 
+@pytest.fixture(autouse=True)
+def no_browser(monkeypatch):
+    """Never open a real browser from tests; browser tests turn it back on themselves."""
+    monkeypatch.setenv("COMMUNITYCAD_NO_BROWSER", "1")
+
+
 @pytest.fixture
 def settings(tmp_path: Path) -> Settings:
     return Settings(

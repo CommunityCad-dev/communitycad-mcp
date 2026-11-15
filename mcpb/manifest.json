@@ -3,7 +3,7 @@
   "manifest_version": "0.4",
   "name": "communitycad-mcp",
   "display_name": "CommunityCAD",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Find real parts on CommunityCAD, read their datasheets and download CAD files into your design.",
   "long_description": "Search CommunityCAD for real, dimensionally accurate parts: vendor components, hardware and community models. Read datasheets, comments and accuracy scores, and save STEP, STL and other CAD files to a folder your CAD tool can open. Downloads follow the same limits as the website. Sign in from the chat by asking Claude to link your CommunityCAD account.",
   "author": {

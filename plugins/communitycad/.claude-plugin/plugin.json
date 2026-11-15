@@ -1,6 +1,6 @@
 {
   "name": "communitycad",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Search CommunityCAD for real, dimensionally accurate parts, read datasheets, comments and accuracy scores, and download STEP, STL and other CAD files into your project.",
   "author": {
     "name": "CommunityCAD",

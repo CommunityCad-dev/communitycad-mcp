@@ -140,7 +140,7 @@ CommunityCAD's tools are asked about through your agent's usual permission promp
 npx @modelcontextprotocol/inspector uvx communitycad-mcp
 ```
 
-**Sign in** by asking your agent to "link my CommunityCAD account". It shows a short code and a link; approve it on communitycad.dev and ask the agent to finish. The connection is named after the AI app and the computer (e.g. "Claude Code on DESKTOP-ABC"), so you can tell several apart in your account. Searching, reading and downloads within the signed-out limit work without signing in.
+**Sign in** by asking your agent to "link my CommunityCAD account". Your browser opens on the approval page (the agent also gives you the link, and a short code as a fallback); approve it on communitycad.dev and you're signed in, with no need to tell the agent. Set `COMMUNITYCAD_NO_BROWSER=1` to never open a browser; it also stays closed over SSH. The connection is named after the AI app and the computer (e.g. "Claude Code on DESKTOP-ABC"), so you can tell several apart in your account. Searching, reading and downloads within the signed-out limit work without signing in.
 
 ### Settings
 

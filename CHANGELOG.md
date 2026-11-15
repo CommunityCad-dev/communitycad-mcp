@@ -4,8 +4,11 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-15
+
 ### Added
 
+- One-click sign-in: `link_account` opens the approval page in your default browser (not over SSH, on a Linux machine without a display, or with `COMMUNITYCAD_NO_BROWSER=1`) and its answer starts with a clickable "Approve CommunityCAD sign-in" link, with the code as a fallback. The approval is picked up in the background and saved, so the next tool call is signed in without telling the agent you're done. Asking again while it waits returns the same link; `account_status` shows a sign-in that's waiting. Once approved: "Signed in as <username>. You can close the browser tab."
 - `install`, `uninstall` and `doctor` now also cover OpenCode, Codex, Gemini CLI, GitHub Copilot CLI and Zed, the same set of apps SolidCraft's agent setup configures. Codex's `config.toml` is edited in place.
 - README: an Apps table, and how to use CommunityCAD inside SolidCraft's in-app chat.
 
@@ -32,5 +35,6 @@ First public release.
 - Claude Code plugin marketplace in this repository, with a `find-a-part` skill.
 - Claude Desktop extension (`.mcpb`) attached to each GitHub release.
 
-[Unreleased]: https://github.com/CommunityCad-dev/communitycad-mcp/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/CommunityCad-dev/communitycad-mcp/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/CommunityCad-dev/communitycad-mcp/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/CommunityCad-dev/communitycad-mcp/releases/tag/v0.1.0

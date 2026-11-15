@@ -36,7 +36,7 @@ Short verbs, typed inputs and outputs. Results carry IDs and page URLs (`https:/
 
 ### Account
 - `account_status`: signed in or not, username, plan, downloads left today and this week, reset times. Signed out: the signed-out limit, what's left, and a sign-up link.
-- `link_account` (local): starts the device code flow, returns the code and URL, waits for approval.
+- `link_account` (local): starts the device code flow, opens the approval link in the browser when there is one (never over SSH or headless, never on stdout), returns a clickable link and the code at once, and polls in the background until approval, denial or expiry, saving the token so the next call is signed in. Calling again while pending returns the same code.
 - `unlink_account` (local): revokes the token on the server and deletes it locally.
 
 ### Discovery

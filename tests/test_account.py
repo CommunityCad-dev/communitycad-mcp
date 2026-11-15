@@ -1,7 +1,9 @@
+import asyncio
 import json
 import os
 
 import httpx
+import pytest
 
 from communitycad_mcp.token_store import TokenStore
 
@@ -28,7 +30,7 @@ async def test_link_two_step_then_unlink(run, api_mock, settings):
         "status": "linked",
         "username": "example-user",
         "scope": "catalog:read download",
-        "message": "Signed in to CommunityCAD as example-user.",
+        "message": "Signed in as example-user. You can close the browser tab.",
     }
     assert TOKEN not in json.dumps(first) + json.dumps(done)
     if os.name != "nt":  # Windows has no POSIX modes; the per-user config dir protects it
@@ -177,7 +179,8 @@ async def test_wait_runs_out_still_waiting(run, api_mock):
     api_mock.post(f"{V1}/auth/device/token").respond(400, json={"error": "authorization_pending"})
     out = await run.ok("link_account", {"wait": True})
     assert out["status"] == "pending" and out["waiting_for_approval"] is True
-    assert out["message"].startswith("Still waiting for approval")
+    assert out["message"].startswith("[Approve CommunityCAD sign-in](https://example.test/link?code=ABCD-EFGH)")
+    assert "Still waiting for approval" in out["message"]
     assert "link?code=ABCD-EFGH" in out["message"]
     again = await run.ok("link_account")
     assert again["status"] == "pending" and "upstream" not in json.dumps(again)
@@ -193,7 +196,7 @@ async def test_poll_hiccup_keeps_waiting(run, api_mock):
         ]
     )
     first = await run.ok("link_account", {"wait": True})
-    assert first["status"] == "pending" and first["message"].startswith("Still waiting for approval")
+    assert first["status"] == "pending" and "Still waiting for approval" in first["message"]
     second = await run.ok("link_account", {"wait": True})
     assert second["status"] == "pending"
     assert (await run.ok("link_account"))["status"] == "linked"
@@ -323,3 +326,206 @@ async def test_scope_missing_says_how_to_allow_uploads():
         403, json={"detail": {"error": "insufficient_scope", "required": ["models:write"], "missing": ["models:write"]}}
     )
     assert "allow_uploads=true" in from_response(resp, signed_in=True).message
+
+
+# -- one-click sign-in: browser, background completion --------------------------
+
+LINK = "[Approve CommunityCAD sign-in](https://example.test/link?code=ABCD-EFGH)"
+
+
+async def _yield(_s: float) -> None:
+    await asyncio.sleep(0)
+
+
+def _server(settings, **kw):
+    from communitycad_mcp.server import build_server
+
+    return build_server(settings, sleep=_yield, **kw)
+
+
+async def _until(cond, tries: int = 500) -> None:
+    for _ in range(tries):
+        if cond():
+            return
+        await asyncio.sleep(0)
+    raise AssertionError("condition never became true")
+
+
+@pytest.fixture
+def desktop(monkeypatch):
+    """A Linux desktop session where opening a browser is allowed."""
+    for name in ("COMMUNITYCAD_NO_BROWSER", "SSH_CONNECTION", "SSH_CLIENT", "WAYLAND_DISPLAY"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("DISPLAY", ":0")
+    monkeypatch.setattr("sys.platform", "linux")
+
+
+@pytest.mark.parametrize(
+    "env, platform, expected",
+    [
+        ({"DISPLAY": ":0"}, "linux", True),
+        ({"WAYLAND_DISPLAY": "wayland-0"}, "linux", True),
+        ({}, "linux", False),  # headless
+        ({}, "win32", True),
+        ({}, "darwin", True),
+        ({"DISPLAY": ":0", "SSH_CONNECTION": "a b c d"}, "linux", False),
+        ({"SSH_CONNECTION": "a b c d"}, "darwin", False),
+        ({"COMMUNITYCAD_NO_BROWSER": "1"}, "win32", False),
+        ({"COMMUNITYCAD_NO_BROWSER": "0", "DISPLAY": ":0"}, "linux", True),
+    ],
+)
+def test_can_open_browser(env, platform, expected):
+    from communitycad_mcp.browser import can_open
+
+    assert can_open(env, platform) is expected
+
+
+async def test_link_opens_browser_and_leads_with_link(run, api_mock, desktop, monkeypatch):
+    opened = []
+    monkeypatch.setattr("communitycad_mcp.browser._launch", lambda url: opened.append(url) or True)
+    api_mock.post(f"{V1}/auth/device/code").respond(200, json=fixture("device_code.json"))
+    out = await run.ok("link_account")
+    assert opened == ["https://example.test/link?code=ABCD-EFGH"]
+    assert out["status"] == "pending" and out["browser_opened"] is True
+    assert out["message"].startswith(LINK + "\n\n")
+    assert out["message"].index(LINK) < out["message"].index("Code: ABCD-EFGH")
+    assert "clickable link" in out["message"] and "already open" in out["message"]
+
+
+@pytest.mark.parametrize("env", [{"COMMUNITYCAD_NO_BROWSER": "1"}, {"SSH_CONNECTION": "a b c d"}, {"DISPLAY": ""}])
+async def test_link_skips_browser_when_headless(run, api_mock, desktop, monkeypatch, env):
+    for k, v in env.items():
+        monkeypatch.setenv(k, v)
+    monkeypatch.setattr("communitycad_mcp.browser._launch", lambda url: pytest.fail("browser opened"))
+    api_mock.post(f"{V1}/auth/device/code").respond(200, json=fixture("device_code.json"))
+    out = await run.ok("link_account")
+    assert out["browser_opened"] is False and out["message"].startswith(LINK)
+    assert "already open" not in out["message"]
+
+
+async def test_browser_failure_is_not_an_error(run, api_mock, desktop, monkeypatch):
+    def boom(url):
+        raise OSError("no browser")
+
+    monkeypatch.setattr("communitycad_mcp.browser._launch", boom)
+    api_mock.post(f"{V1}/auth/device/code").respond(200, json=fixture("device_code.json"))
+    out = await run.ok("link_account")
+    assert out["status"] == "pending" and out["browser_opened"] is False
+
+
+@pytest.mark.skipif(os.name == "nt", reason="uses a POSIX shell script as the browser")
+async def test_browser_launch_writes_nothing_to_stdout(run, api_mock, desktop, monkeypatch, tmp_path, capfd):
+    """stdout is the MCP channel: a browser that prints when started must not reach it."""
+    seen = tmp_path / "opened.txt"
+    fake = tmp_path / "fake-browser"
+    fake.write_text(f'#!/bin/sh\necho "stdout noise $1"\necho "stderr noise" >&2\nprintf %s "$1" > "{seen}"\n')
+    fake.chmod(0o755)
+    monkeypatch.setenv("BROWSER", str(fake))
+    api_mock.post(f"{V1}/auth/device/code").respond(200, json=fixture("device_code.json"))
+    out = await run.ok("link_account")
+    assert out["browser_opened"] is True
+    assert seen.read_text() == "https://example.test/link?code=ABCD-EFGH"
+    captured = capfd.readouterr()
+    assert captured.out == "" and "noise" not in captured.err
+
+
+async def test_background_completion_signs_in_without_done(settings, api_mock):
+    from mcp import Client
+
+    api_mock.post(f"{V1}/auth/device/code").respond(200, json=fixture("device_code.json"))
+    poll = api_mock.post(f"{V1}/auth/device/token").mock(
+        side_effect=[oauth_error("authorization_pending"), httpx.Response(200, json=fixture("device_token.json"))]
+    )
+    api_mock.get(f"{V1}/account/status").respond(200, json=fixture("account_status_signed_in.json"))
+    server = _server(settings, poll_sleep=_yield)
+    store = TokenStore(settings.token_path)
+    async with Client(server) as c:
+        first = json.loads((await c.call_tool("link_account", {})).content[0].text)
+        assert first["status"] == "pending"
+        await _until(lambda: store.load() is not None)
+        assert store.load().access_token == TOKEN and poll.call_count == 2
+        status = json.loads((await c.call_tool("account_status", {})).content[0].text)
+        assert status["signed_in"] is True
+        done = json.loads((await c.call_tool("link_account", {})).content[0].text)
+        assert done["status"] == "linked"
+        assert done["message"] == "Signed in as example-user. You can close the browser tab."
+        again = json.loads((await c.call_tool("link_account", {})).content[0].text)
+        assert again["status"] == "already_linked"
+    assert poll.call_count == 2
+
+
+async def test_pending_recall_returns_same_code(run, api_mock):
+    code = api_mock.post(f"{V1}/auth/device/code").respond(200, json=fixture("device_code.json"))
+    api_mock.post(f"{V1}/auth/device/token").respond(400, json={"error": "authorization_pending"})
+    first = await run.ok("link_account")
+    second = await run.ok("link_account")
+    assert code.call_count == 1
+    assert second["user_code"] == first["user_code"] == "ABCD-EFGH"
+    assert second["verification_uri_complete"] == first["verification_uri_complete"]
+    assert second["status"] == "pending" and second["message"].startswith(LINK)
+
+
+async def test_background_expiry_then_new_code(settings, api_mock):
+    from mcp import Client
+
+    now = [0.0]
+
+    async def tick(s: float) -> None:
+        now[0] += s
+        await asyncio.sleep(0)
+
+    code = api_mock.post(f"{V1}/auth/device/code").respond(200, json=fixture("device_code.json"))
+    api_mock.post(f"{V1}/auth/device/token").respond(400, json={"error": "authorization_pending"})
+    server = _server(settings, poll_sleep=tick, clock=lambda: now[0])
+    async with Client(server) as c:
+        await c.call_tool("link_account", {})
+        await _until(lambda: server.linker._task is not None and server.linker._task.done(), tries=5000)
+        assert server.linker.pending_info() is None and now[0] >= 600
+        fresh = json.loads((await c.call_tool("link_account", {})).content[0].text)
+    assert code.call_count == 2 and fresh["status"] == "pending"
+    assert "expired" in fresh["previous_attempt"]
+    assert not settings.token_path.exists()
+
+
+async def test_background_denied_reported_on_next_link(settings, api_mock):
+    from mcp import Client
+
+    api_mock.post(f"{V1}/auth/device/code").respond(200, json=fixture("device_code.json"))
+    api_mock.post(f"{V1}/auth/device/token").respond(400, json={"error": "access_denied"})
+    server = _server(settings, poll_sleep=_yield)
+    async with Client(server) as c:
+        await c.call_tool("link_account", {})
+        await _until(lambda: server.linker.pending_info() is None)
+        fresh = json.loads((await c.call_tool("link_account", {})).content[0].text)
+    assert "declined" in fresh["previous_attempt"] and not settings.token_path.exists()
+
+
+async def test_account_status_shows_pending_link(settings, api_mock):
+    from mcp import Client
+
+    api_mock.post(f"{V1}/auth/device/code").respond(200, json=fixture("device_code.json"))
+    api_mock.get(f"{V1}/account/status").respond(200, json=fixture("account_status_signed_out.json"))
+    async with Client(_server(settings)) as c:  # background sleeps for real: nothing polls here
+        await c.call_tool("link_account", {})
+        out = json.loads((await c.call_tool("account_status", {})).content[0].text)
+    assert out["sign_in_pending"]["user_code"] == "ABCD-EFGH"
+    assert out["message"].endswith(LINK)
+
+
+async def test_unlink_and_shutdown_cancel_background(settings, api_mock):
+    from mcp import Client
+
+    api_mock.post(f"{V1}/auth/device/code").respond(200, json=fixture("device_code.json"))
+    server = _server(settings)
+    async with Client(server) as c:
+        await c.call_tool("link_account", {})
+        task = server.linker._task
+        assert task is not None and not task.done()
+        out = json.loads((await c.call_tool("unlink_account", {})).content[0].text)
+        assert out["status"] == "not_linked" and "Cancelled" in out["message"]
+        assert task.cancelled() and server.linker.pending_info() is None
+        await c.call_tool("link_account", {})
+        task = server.linker._task
+        assert task is not None and not task.done()
+    # Leaving the session (shutdown) stops the background check.
+    assert task.cancelled() and server.linker._task is None
