@@ -15,7 +15,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable
 
-from .api import ApiClient
+from .api import SCOPES, UPLOAD_SCOPE, ApiClient
 from .errors import CommunityCADError
 from .token_store import StoredToken, TokenStore
 
@@ -28,6 +28,9 @@ class _Pending:
     verification_uri_complete: str
     expires_at: float
     interval: int
+    # True for a scope upgrade of the saved token (no new token comes back).
+    upgrade: bool = False
+    with_uploads: bool = False
 
 
 _FAILURES = {
@@ -82,6 +85,10 @@ def device_name(client_name: str | None, hostname: str | None = None) -> str:
     return full[:MAX_DEVICE_NAME].rstrip()
 
 
+def _has_upload_scope(scope: str | None) -> bool:
+    return UPLOAD_SCOPE in (scope or "").split()
+
+
 class AccountLinker:
     def __init__(
         self,
@@ -118,36 +125,90 @@ class AccountLinker:
             ),
         }
 
-    async def link(self, *, wait: bool = False, max_wait_s: float = 50.0, device_name: str | None = None) -> dict[str, Any]:
+    async def link(
+        self,
+        *,
+        wait: bool = False,
+        max_wait_s: float = 50.0,
+        device_name: str | None = None,
+        allow_uploads: bool = False,
+    ) -> dict[str, Any]:
         existing = self.store.load()
-        if existing is not None:
-            return {
-                "status": "already_linked",
-                "username": existing.username,
-                "message": f"Already signed in as {existing.username}. Run unlink_account first to switch accounts.",
-            }
         if self._pending is not None and self._clock() >= self._pending.expires_at:
             self._pending = None
-        if self._pending is None:
-            data = await self.api.device_code(device_name=device_name)
-            self._pending = _Pending(
-                device_code=data["device_code"],
-                user_code=data["user_code"],
-                verification_uri=data["verification_uri"],
-                verification_uri_complete=data.get("verification_uri_complete") or data["verification_uri"],
-                expires_at=self._clock() + int(data.get("expires_in", 600)),
-                interval=max(1, int(data.get("interval", 5))),
-            )
-            if not wait:
+        if existing is not None:
+            if not allow_uploads:
+                if self._pending is not None and self._pending.upgrade:
+                    return await self._poll(wait=wait, max_wait_s=max_wait_s)
                 return {
-                    "status": "pending",
-                    **self._code_info(self._pending),
-                    "message": (
-                        f"Ask the user to open {self._pending.verification_uri_complete} (signed in to CommunityCAD) "
-                        f"and approve code {self._pending.user_code}. Then call link_account again to finish."
-                    ),
+                    "status": "already_linked",
+                    "username": existing.username,
+                    "uploads_allowed": _has_upload_scope(existing.scope),
+                    "message": f"Already signed in as {existing.username}. Run unlink_account first to switch accounts.",
                 }
+            return await self._upgrade(existing, wait=wait, max_wait_s=max_wait_s)
+        if self._pending is not None and (self._pending.upgrade or (allow_uploads and not self._pending.with_uploads)):
+            self._pending = None  # a different request than the one waiting
+        if self._pending is None:
+            scope = f"{SCOPES} {UPLOAD_SCOPE}" if allow_uploads else SCOPES
+            data = await self.api.device_code(device_name=device_name, scope=scope)
+            self._pending = self._pending_from(data, with_uploads=allow_uploads)
+            if not wait:
+                return self._started(self._pending)
         return await self._poll(wait=wait, max_wait_s=max_wait_s)
+
+    def _pending_from(self, data: dict[str, Any], *, upgrade: bool = False, with_uploads: bool = False) -> _Pending:
+        return _Pending(
+            device_code=data["device_code"],
+            user_code=data["user_code"],
+            verification_uri=data["verification_uri"],
+            verification_uri_complete=data.get("verification_uri_complete") or data["verification_uri"],
+            expires_at=self._clock() + int(data.get("expires_in") or 600),
+            interval=max(1, int(data.get("interval") or 5)),
+            upgrade=upgrade,
+            with_uploads=with_uploads or upgrade,
+        )
+
+    def _started(self, p: _Pending) -> dict[str, Any]:
+        what = "allow uploads from this app" if p.upgrade else "approve"
+        return {
+            "status": "pending",
+            **self._code_info(p),
+            "message": (
+                f"Ask the user to open {p.verification_uri_complete} (signed in to CommunityCAD) "
+                f"and {what} with code {p.user_code}. Then call link_account again to finish."
+            ),
+        }
+
+    async def _upgrade(self, existing: StoredToken, *, wait: bool, max_wait_s: float) -> dict[str, Any]:
+        """Add the upload permission to the saved token (the user approves it on the site)."""
+        if self._pending is None or not self._pending.upgrade:
+            self._pending = None
+            data = await self.api.request_scopes(UPLOAD_SCOPE)
+            if data.get("status") == "granted":
+                scope = data.get("scope") or existing.scope
+                self._save_scope(existing, scope)
+                return {
+                    "status": "uploads_allowed",
+                    "username": existing.username,
+                    "scope": scope,
+                    "message": f"Uploads are already allowed for {existing.username}.",
+                }
+            self._pending = self._pending_from(data, upgrade=True)
+            if not wait:
+                return self._started(self._pending)
+        return await self._poll(wait=wait, max_wait_s=max_wait_s)
+
+    def _save_scope(self, existing: StoredToken, scope: str | None) -> None:
+        self.store.save(
+            StoredToken(
+                access_token=existing.access_token,
+                username=existing.username,
+                scope=scope,
+                token_id=existing.token_id,
+                api_url=existing.api_url,
+            )
+        )
 
     async def _poll(self, *, wait: bool, max_wait_s: float) -> dict[str, Any]:
         p = self._pending
@@ -161,6 +222,23 @@ class AccountLinker:
                     raise
                 # A check that didn't get through doesn't end the sign-in: the code is still valid.
                 return self._waiting(p, " The last check didn't get through, so call again in a moment.")
+            if error is None and p.upgrade:
+                self._pending = None
+                existing = self.store.load()
+                if existing is None:
+                    raise CommunityCADError("not_signed_in", "Signed out while waiting. Run link_account again.")
+                self._save_scope(existing, body.get("scope"))
+                allowed = _has_upload_scope(body.get("scope"))
+                return {
+                    "status": "uploads_allowed" if allowed else "linked",
+                    "username": existing.username,
+                    "scope": body.get("scope"),
+                    "message": (
+                        f"Uploads are now allowed for {existing.username}."
+                        if allowed
+                        else "The approval finished, but upload permission wasn't granted."
+                    ),
+                }
             if error is None:
                 token = body.get("access_token")
                 if not token:
@@ -176,11 +254,12 @@ class AccountLinker:
                     )
                 )
                 self._pending = None
+                uploads = " Uploads are allowed." if _has_upload_scope(body.get("scope")) else ""
                 return {
                     "status": "linked",
                     "username": body.get("username"),
                     "scope": body.get("scope"),
-                    "message": f"Signed in to CommunityCAD as {body.get('username')}.",
+                    "message": f"Signed in to CommunityCAD as {body.get('username')}.{uploads}",
                 }
             if error == "slow_down":
                 p.interval = int(body.get("interval") or p.interval + 5)

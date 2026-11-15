@@ -101,8 +101,15 @@ def from_response(resp: httpx.Response, *, signed_in: bool, download: bool = Fal
             )
         return CommunityCADError("not_signed_in", "This needs a linked CommunityCAD account. Run link_account.")
     if status == 403:
-        if api_code == "insufficient_scope":
-            missing = detail.get("missing") if isinstance(detail, dict) else None
+        if api_code in ("insufficient_scope", "scope_missing"):
+            missing = detail.get("missing") if isinstance(detail, dict) else body.get("missing")
+            if api_code == "scope_missing" or (isinstance(missing, list) and "models:write" in missing):
+                return CommunityCADError(
+                    "scope_missing",
+                    "Uploading needs the user's permission. Ask them, then run link_account(allow_uploads=true) "
+                    "and have them approve the code on CommunityCAD.",
+                    missing=missing or ["models:write"],
+                )
             return CommunityCADError(
                 "scope_missing",
                 "The linked account didn't grant this permission. Run unlink_account, then link_account again.",

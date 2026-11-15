@@ -139,14 +139,20 @@ def build_server(
     async def link_account(
         ctx: Context,
         wait: Annotated[bool, Field(description="Keep checking (up to ~50 seconds) until the user approves.")] = False,
+        allow_uploads: Annotated[
+            bool,
+            Field(description="Also ask for permission to upload (only after the user said they want to upload). Works when already linked too."),
+        ] = False,
     ) -> dict:
         """Sign in to CommunityCAD with a short code the user approves on the website.
 
         The first call returns a code and a link for the user. Call again (or with wait=true)
         after they approve to finish. status "pending" means it is still waiting for the user's
         approval; that is normal, not a connection problem. The sign-in is saved on this
-        computer only and shows in the account as "<AI app> on <computer>"."""
-        return await linker.link(wait=wait, device_name=device_name(_client_name(ctx)))
+        computer only and shows in the account as "<AI app> on <computer>".
+        allow_uploads=true asks the user to also allow uploads; when already linked, it asks
+        them to approve just that permission (call again to finish, like the first link)."""
+        return await linker.link(wait=wait, device_name=device_name(_client_name(ctx)), allow_uploads=allow_uploads)
 
     @tool(annotations=ToolAnnotations(readOnlyHint=False, destructiveHint=True, openWorldHint=True))
     @_tool_errors

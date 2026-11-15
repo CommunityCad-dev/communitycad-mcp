@@ -16,6 +16,8 @@ from .errors import CommunityCADError, from_response
 
 CLIENT_NAME = "communitycad-mcp"
 SCOPES = "catalog:read download"
+# Asked for only when the user allows uploads (link_account(allow_uploads=true)).
+UPLOAD_SCOPE = "models:write"
 USER_AGENT = f"{CLIENT_NAME}/{__version__}"
 
 
@@ -121,8 +123,8 @@ class ApiClient:
 
     # -- auth (device grant, RFC 8628) ------------------------------------
 
-    async def device_code(self, device_name: str | None = None) -> dict[str, Any]:
-        body = {"client_name": CLIENT_NAME, "client_version": __version__, "scope": SCOPES}
+    async def device_code(self, device_name: str | None = None, scope: str = SCOPES) -> dict[str, Any]:
+        body = {"client_name": CLIENT_NAME, "client_version": __version__, "scope": scope}
         if device_name:
             body["device_name"] = device_name
         return await self._json("POST", "/auth/device/code", auth=False, json=body)
@@ -145,6 +147,10 @@ class ApiClient:
         if not resp.is_success:
             raise from_response(resp, signed_in=False)
         return None, resp.json()
+
+    async def request_scopes(self, scope: str) -> dict[str, Any]:
+        """Ask the user to add permissions to the saved token (scope upgrade)."""
+        return await self._json("POST", "/auth/tokens/current/scopes", json={"scope": scope}, signed_out_retry=False)
 
     async def revoke_current_token(self) -> None:
         await self._request("DELETE", "/auth/tokens/current", signed_out_retry=False)

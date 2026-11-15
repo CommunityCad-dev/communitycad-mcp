@@ -238,3 +238,86 @@ async def test_account_status_signed_out_answer_to_a_token_signs_out(run, api_mo
     assert route.call_count == 1 and route.calls[0].request.headers["Authorization"] == f"Bearer {TOKEN}"
     assert TokenStore(settings.token_path).load() is None
     assert out["signed_in"] is False and out["note"] == SIGNED_OUT_NOTE
+
+
+# -- upload permission ---------------------------------------------------------
+
+
+UPGRADE = {
+    "status": "approval_required",
+    "scope": "catalog:read download",
+    "added_scopes": ["models:write"],
+    "device_code": "example-upgrade-code",
+    "user_code": "WXYZ-2345",
+    "verification_uri": "https://example.test/link",
+    "verification_uri_complete": "https://example.test/link?code=WXYZ-2345&app=mcp",
+    "expires_in": 600,
+    "interval": 5,
+}
+
+
+async def test_link_with_uploads_asks_for_models_write(run, api_mock, settings):
+    code = api_mock.post(f"{V1}/auth/device/code").respond(200, json=fixture("device_code.json"))
+    api_mock.post(f"{V1}/auth/device/token").respond(
+        200, json={**fixture("device_token.json"), "scope": "catalog:read download models:write"}
+    )
+    first = await run.ok("link_account", {"allow_uploads": True})
+    assert first["status"] == "pending"
+    assert json.loads(code.calls[0].request.content)["scope"] == "catalog:read download models:write"
+    done = await run.ok("link_account", {"allow_uploads": True})
+    assert done["status"] == "linked" and "Uploads are allowed" in done["message"]
+    assert TokenStore(settings.token_path).load().scope == "catalog:read download models:write"
+
+
+async def test_upgrade_when_already_linked(run, api_mock, settings, signed_in):
+    up = api_mock.post(f"{V1}/auth/tokens/current/scopes").respond(200, json=UPGRADE)
+    poll = api_mock.post(f"{V1}/auth/device/token").mock(
+        side_effect=[
+            oauth_error("authorization_pending"),
+            httpx.Response(
+                200,
+                json={
+                    "access_token": None,
+                    "scope": "catalog:read download models:write",
+                    "token_id": 42,
+                    "username": "example-user",
+                    "upgraded": True,
+                },
+            ),
+        ]
+    )
+    first = await run.ok("link_account", {"allow_uploads": True})
+    assert first["status"] == "pending" and first["user_code"] == "WXYZ-2345"
+    assert "allow uploads" in first["message"]
+    assert json.loads(up.calls[0].request.content) == {"scope": "models:write"}
+    assert up.calls[0].request.headers["Authorization"] == f"Bearer {TOKEN}"
+
+    waiting = await run.ok("link_account", {"allow_uploads": True})
+    assert waiting["status"] == "pending" and up.call_count == 1  # same code, not a new request
+    done = await run.ok("link_account", {"allow_uploads": True})
+    assert done["status"] == "uploads_allowed" and poll.call_count == 2
+    saved = TokenStore(settings.token_path).load()
+    assert saved.access_token == TOKEN and saved.scope == "catalog:read download models:write"
+    assert (await run.ok("link_account"))["uploads_allowed"] is True
+
+
+async def test_upgrade_already_granted(run, api_mock, settings, signed_in):
+    api_mock.post(f"{V1}/auth/tokens/current/scopes").respond(
+        200, json={"status": "granted", "scope": "catalog:read download models:write", "added_scopes": []}
+    )
+    poll = api_mock.post(f"{V1}/auth/device/token").respond(500)
+    out = await run.ok("link_account", {"allow_uploads": True})
+    assert out["status"] == "uploads_allowed" and not poll.called
+    assert TokenStore(settings.token_path).load().scope.endswith("models:write")
+
+
+async def test_scope_missing_says_how_to_allow_uploads():
+    from communitycad_mcp.errors import from_response
+
+    resp = httpx.Response(403, json={"error": "scope_missing", "detail": "Needs models:write."})
+    err = from_response(resp, signed_in=True)
+    assert err.code == "scope_missing" and "link_account(allow_uploads=true)" in err.message
+    resp = httpx.Response(
+        403, json={"detail": {"error": "insufficient_scope", "required": ["models:write"], "missing": ["models:write"]}}
+    )
+    assert "allow_uploads=true" in from_response(resp, signed_in=True).message
