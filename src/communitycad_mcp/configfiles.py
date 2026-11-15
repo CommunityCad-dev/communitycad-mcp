@@ -262,8 +262,8 @@ def remove_server(text: str, list_key: str, name: str) -> str:
 
 try:  # Python 3.11+
     import tomllib as _toml
-except ImportError:  # pragma: no cover - Python 3.10
-    _toml = None  # type: ignore[assignment]
+except ImportError:  # pragma: no cover - Python 3.10: the same parser, as a package
+    import tomli as _toml  # type: ignore[no-redef]
 
 _HEADER = re.compile(r"^\s*\[")
 
