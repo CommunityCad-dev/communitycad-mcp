@@ -5,7 +5,7 @@ An [MCP](https://modelcontextprotocol.io) server that lets AI agents use [Commun
 > **Status: beta.** On [PyPI](https://pypi.org/project/communitycad-mcp/) as `communitycad-mcp`. Changes are listed in the [changelog](https://github.com/CommunityCad-dev/communitycad-mcp/blob/main/CHANGELOG.md).
 
 <p align="center">
-  <a href="https://youtu.be/_drNAL4Haj0"><img src="https://img.youtube.com/vi/_drNAL4Haj0/maxresdefault.jpg" width="800" alt="CommunityCAD MCP demo in SolidCraft: find a part, read its datasheet, download it and place it in a design"></a>
+  <a href="https://youtu.be/_drNAL4Haj0"><img src="docs/media/mcp-demo.webp" width="800" alt="CommunityCAD MCP demo in SolidCraft: find a part, read its datasheet, download it and place it in a design"></a>
   <br>
   <sub>Find a part, read its datasheet, download it and place it in a design, in SolidCraft. <a href="https://youtu.be/_drNAL4Haj0">Watch the demo on YouTube</a>.</sub>
 </p>
