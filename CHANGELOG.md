@@ -4,6 +4,16 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-11-15
+
+### Removed
+
+- The daily upload cap. Uploads no longer check how many are left before sending files, and results and messages no longer report uploads left today; a missing or null `uploads_left_today` from the API is ignored.
+
+### Changed
+
+- An HTTP 429 from the API (rate limited or limit reached) passes on the API's own message and reset time, and tells the agent not to retry.
+
 ## [0.1.1] - 2026-11-15
 
 ### Added
@@ -35,6 +45,7 @@ First public release.
 - Claude Code plugin marketplace in this repository, with a `find-a-part` skill.
 - Claude Desktop extension (`.mcpb`) attached to each GitHub release.
 
-[Unreleased]: https://github.com/CommunityCad-dev/communitycad-mcp/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/CommunityCad-dev/communitycad-mcp/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/CommunityCad-dev/communitycad-mcp/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/CommunityCad-dev/communitycad-mcp/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/CommunityCad-dev/communitycad-mcp/releases/tag/v0.1.0

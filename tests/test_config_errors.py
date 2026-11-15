@@ -62,6 +62,7 @@ def test_error_mapping():
         (resp(413, {}), False, False, "file_too_large"),
         (resp(429, fixture("download_limit_reached.json")), True, True, "download_limit_reached"),
         (resp(429, {"error": "issue_cap_reached", "detail": "x"}, {"Retry-After": "60"}), True, True, "rate_limited"),
+        (resp(429, fixture("upload_limit_reached.json")), True, False, "upload_limit_reached"),
         (resp(422, {"detail": [{"msg": "bad"}]}), False, False, "invalid_request"),
         (resp(502, None), False, False, "upstream_unavailable"),
     ]
@@ -74,6 +75,13 @@ def test_limit_error_carries_reset_and_links():
     d = e.to_dict()["error"]
     assert d["reset_at"] and d["upgrade_url"] and d["sign_up_url"] and d["account_hint"]
     assert d["daily_remaining"] == 0
+
+
+def test_rate_limited_passes_on_message_and_reset():
+    e = from_response(resp(429, {"detail": "Slow down.", "reset_at": "2026-11-15T00:00:00Z"}, {"Retry-After": "60"}), signed_in=True)
+    d = e.to_dict()["error"]
+    assert d["code"] == "rate_limited" and d["message"].startswith("Slow down.") and "Don't retry" in d["message"]
+    assert d["reset_at"] == "2026-11-15T00:00:00Z" and d["retry_after_s"] == 60
 
 
 def test_token_never_in_reprs(tmp_path):

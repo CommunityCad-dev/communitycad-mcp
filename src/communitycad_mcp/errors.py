@@ -142,8 +142,8 @@ def from_response(resp: httpx.Response, *, signed_in: bool, download: bool = Fal
         if api_code == "upload_limit_reached":
             return CommunityCADError(
                 "upload_limit_reached",
-                "No AI uploads are left today (10 a day per account). Nothing was published. "
-                "Don't retry; it resets at reset_at.",
+                (text or "CommunityCAD isn't accepting more uploads from this account right now.")
+                + " Nothing was published. Don't retry; tell the user when it resets (reset_at).",
                 **extras,
             )
         if api_code == "download_limit_reached":
@@ -155,7 +155,7 @@ def from_response(resp: httpx.Response, *, signed_in: bool, download: bool = Fal
         retry_after = resp.headers.get("Retry-After")
         return CommunityCADError(
             "rate_limited",
-            text or "Too many requests. Wait before trying again.",
+            (text or "Too many requests.") + " Don't retry; tell the user when it resets (reset_at or retry_after_s).",
             retry_after_s=int(retry_after) if retry_after and retry_after.isdigit() else None,
             **extras,
         )

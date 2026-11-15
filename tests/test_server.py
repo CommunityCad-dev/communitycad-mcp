@@ -88,5 +88,5 @@ def test_upload_rules_are_stated():
     assert "public or private" in flat and "never pick one yourself" in flat
     assert "18+" in flat and "firearm" in flat
     assert "never invent dimensions" in flat and "datasheet when it has one" in flat
-    assert "uploads are left today" in flat and "can't delete anything" in flat
+    assert "uploads are left today" not in flat and "give the user the page link" in flat and "can't delete anything" in flat
     assert "upload draft" not in flat

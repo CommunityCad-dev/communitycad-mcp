@@ -43,7 +43,7 @@ def uploader(settings):
 
 @pytest.fixture(autouse=True)
 def account_status(api_mock):
-    """By default account status has no uploads_left_today, like an older server."""
+    """Account status is mocked so a stray call would be visible; uploads never need it."""
     return api_mock.get(f"{V1}/account/status").respond(200, json=fixture("account_status_signed_in.json"))
 
 
@@ -148,55 +148,28 @@ async def test_bad_file_types_and_sizes_fail_locally(run, api_mock, uploader, fi
     no_requests(api_mock)
 
 
-# -- daily upload cap ---------------------------------------------------------------
+# -- no daily upload cap ------------------------------------------------------------
 
 
-def at_cap(api_mock, left):
-    status = {**fixture("account_status_signed_in.json"), "uploads_left_today": left, "uploads_reset_at": "2026-11-15T00:00:00Z"}
-    return api_mock.get(f"{V1}/account/status").respond(200, json=status)
-
-
-@pytest.mark.parametrize(
-    "tool, args",
-    [
-        ("upload_model", None),
-        ("upload_version", {"notes": "Thicker walls, 2.4 mm now."}),
-        ("add_images", {"paths": ["photo.png"]}),
-        ("add_datasheets", {"paths": ["sheet.pdf"]}),
-    ],
-)
-async def test_no_uploads_left_stages_nothing(run, api_mock, uploader, files, tool, args):
-    status = at_cap(api_mock, 0)
-    stage, put = staging(api_mock)
-    if args is None:
-        args = model_args(files)
-    else:
-        args = {"model_id": UUID, **args}
-        if "paths" in args:
-            args["paths"] = [str(files / p) for p in args["paths"]]
-        else:
-            args["path"] = str(files / "clip.step")
-    err = await run.err(tool, args)
-    assert err["code"] == "upload_limit_reached" and "Nothing was uploaded" in err["message"]
-    assert err["uploads_reset_at"] == "2026-11-15T00:00:00Z" and err["remaining"] == 0
-    assert status.called and not stage.called and not put.called
-
-
-async def test_uploads_left_or_unknown_goes_ahead(run, api_mock, uploader, files):
+async def test_uploads_skip_account_status(run, api_mock, uploader, files, account_status):
+    """No local pre-check: the server never asks account status before staging."""
+    status = {**fixture("account_status_signed_in.json"), "uploads_left_today": 0}
+    account_status.respond(200, json=status)
     stage, _ = staging(api_mock)
     api_mock.post(f"{V1}/models/{UUID}/images").respond(201, json=fixture("images_added.json"))
-    for left in (1, None):  # None: this sign-in can't upload; the API decides
-        at_cap(api_mock, left)
-        await run.ok("add_images", {"model_id": UUID, "paths": [str(files / "photo.png")]})
-    assert stage.call_count == 2
+    out = await run.ok("add_images", {"model_id": UUID, "paths": [str(files / "photo.png")]})
+    assert stage.called and not account_status.called
+    assert "uploads_left_today" not in out and "left today" not in out["message"]
 
 
-async def test_status_unavailable_falls_back_to_the_api(run, api_mock, uploader, files):
-    api_mock.get(f"{V1}/account/status").respond(503)
+async def test_api_429_on_upload_is_passed_on(run, api_mock, uploader, files):
     stage, _ = staging(api_mock)
-    api_mock.post(f"{V1}/models/{UUID}/images").respond(429, json=fixture("upload_limit_reached.json"))
+    route = api_mock.post(f"{V1}/models/{UUID}/images").respond(429, json=fixture("upload_limit_reached.json"))
     err = await run.err("add_images", {"model_id": UUID, "paths": [str(files / "photo.png")]})
-    assert err["code"] == "upload_limit_reached" and stage.called
+    assert err["code"] == "upload_limit_reached" and stage.called and route.call_count == 1
+    assert err["message"].startswith("Too many uploads in a short time.") and "Don't retry" in err["message"]
+    assert err["reset_at"] == "2026-11-15T00:00:00Z"
+    assert "10" not in err["message"] and "a day" not in err["message"]
 
 
 # -- upload_model --------------------------------------------------------------------
@@ -217,8 +190,8 @@ async def test_upload_model_stages_then_creates(run, api_mock, uploader, files):
             datasheet_paths=[str(files / "sheet.pdf")],
         ),
     )
-    assert out["page_url"] == f"https://example.test/m/{UUID}" and out["uploads_left_today"] == 9
-    assert "9 uploads left today" in out["message"] and "processing" in out["message"]
+    assert out["page_url"] == f"https://example.test/m/{UUID}" and "uploads_left_today" not in out
+    assert "left today" not in out["message"] and "processing" in out["message"]
 
     staged = [json.loads(c.request.content) for c in stage.calls]
     assert staged == [
@@ -288,7 +261,7 @@ async def test_api_errors_are_typed(run, api_mock, uploader, files):
     create.respond(429, json=fixture("upload_limit_reached.json"))
     err = await run.err("upload_model", model_args(files))
     assert err["code"] == "upload_limit_reached"
-    assert err["reset_at"] == "2026-11-15T00:00:00Z" and err["remaining"] == 0 and err["limit"] == 10
+    assert err["reset_at"] == "2026-11-15T00:00:00Z" and "Nothing was published" in err["message"]
 
     create.respond(422, json=fixture("documentation_missing.json"))
     err = await run.err("upload_model", model_args(files))
@@ -340,7 +313,7 @@ async def test_upload_version(run, api_mock, uploader, files):
             "readme_markdown": README,
         },
     )
-    assert out["version_number"] == 2 and out["uploads_left_today"] == 8
+    assert out["version_number"] == 2 and "uploads_left_today" not in out
     assert out["message"].startswith("Uploaded version 2:")
     assert json.loads(route.calls[0].request.content) == {
         "staged_upload": "stg_example_1",
@@ -380,13 +353,13 @@ async def test_add_images_and_datasheets(run, api_mock, uploader, files):
         "add_images",
         {"model_id": UUID, "paths": [str(files / "photo.png"), str(files / "side.jpg")], "captions": ["Front", "Side"]},
     )
-    assert out["added"] == 2 and "7 uploads left today" in out["message"]
+    assert out["added"] == 2 and "left today" not in out["message"]
     assert json.loads(images.calls[0].request.content) == {
         "images": [{"staged_upload": "stg_example_1", "caption": "Front"}, {"staged_upload": "stg_example_2", "caption": "Side"}]
     }
     sheets = api_mock.post(f"{V1}/models/{UUID}/datasheets").respond(201, json=fixture("datasheets_added.json"))
     out = await run.ok("add_datasheets", {"model_id": UUID, "paths": [str(files / "sheet.pdf")], "titles": ["Rail spec"]})
-    assert out["added"] == 1 and out["uploads_left_today"] == 6 and "1 datasheet to" in out["message"]
+    assert out["added"] == 1 and "uploads_left_today" not in out and "1 datasheet to" in out["message"]
     assert json.loads(sheets.calls[0].request.content) == {"datasheets": [{"staged_upload": "stg_example_3", "title": "Rail spec"}]}
     assert put.call_count == 3
 
@@ -406,7 +379,7 @@ async def test_edit_model(run, api_mock, uploader):
     out = await run.ok("edit_model", {"model_id": UUID, "visibility": "public", "license": "CC-BY-4.0", "tags": ["din"]})
     assert json.loads(route.calls[0].request.content) == {"visibility": "public", "license": "CC-BY-4.0", "tags": ["din"]}
     assert out["changed"] == ["license", "tags", "visibility"] and out["license"] == "CC-BY-4.0"
-    assert "uploads_left_today" not in out  # edits don't use an upload
+    assert "uploads_left_today" not in out
 
 
 async def test_edit_model_local_checks(run, api_mock, uploader):

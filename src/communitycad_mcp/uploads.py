@@ -223,37 +223,6 @@ async def stage(api: ApiClient, path: Path) -> Staged:
     return Staged(ticket=ticket["staged_upload"], name=path.name)
 
 
-async def check_uploads_left(api: ApiClient) -> None:
-    """Refuse locally, before anything is staged, when no uploads are left today.
-
-    Account status carries `uploads_left_today` (an integer when this sign-in can
-    upload, null otherwise). Older servers leave it out; then the API's own
-    refusal is the check.
-    """
-    if not api.signed_in:
-        return
-    try:
-        status = await api.account_status()
-    except CommunityCADError as exc:
-        if exc.code == "not_signed_in":
-            raise
-        return  # the upload call itself will say what's wrong
-    left = status.get("uploads_left_today")
-    if isinstance(left, int) and not isinstance(left, bool) and left <= 0:
-        raise CommunityCADError(
-            "upload_limit_reached",
-            "No AI uploads are left today (10 a day per account). Nothing was uploaded. "
-            "Don't retry; it resets at uploads_reset_at.",
-            remaining=0,
-            uploads_reset_at=status.get("uploads_reset_at"),
-        )
-
-
-def _left(data: dict[str, Any]) -> str:
-    left = data.get("uploads_left_today")
-    return f" {left} upload{'s' if left != 1 else ''} left today." if isinstance(left, int) else ""
-
-
 # -- tools ------------------------------------------------------------------------------
 
 WRITE = ToolAnnotations(readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=True)
@@ -290,9 +259,8 @@ def register(mcp, api: ApiClient, settings: Settings, tool_errors, model_ref) ->
     ) -> dict:
         """Upload a new model to CommunityCAD (public or private) from a file or folder, with
         pictures, README and optional datasheets. Only after the user explicitly said yes and
-        chose the visibility, the licence (for public) and whether it's 18+. Uses one of the
-        user's 10 uploads a day; nothing is uploaded or counted when documentation is missing.
-        Same moderation as the website. Returns the page link and uploads left today."""
+        chose the visibility, the licence (for public) and whether it's 18+. Nothing is uploaded
+        when documentation is missing. Same moderation as the website. Returns the page link."""
         missing = description_missing(description) + readme_missing(readme_markdown)
         if not image_paths:
             missing.append("at least one image")
@@ -306,7 +274,6 @@ def register(mcp, api: ApiClient, settings: Settings, tool_errors, model_ref) ->
         captions = _optional_list(image_captions, len(images), "caption")
         sheets = _typed_files(datasheet_paths or [], DATASHEET_TYPES, "datasheet", "Datasheets")
         titles = _optional_list(datasheet_titles, len(sheets), "datasheet title")
-        await check_uploads_left(api)
 
         with ExitStack() as stack:
             if source.is_dir():
@@ -330,11 +297,11 @@ def register(mcp, api: ApiClient, settings: Settings, tool_errors, model_ref) ->
             "datasheets": [{"staged_upload": s.ticket, "title": t} for s, t in zip(staged_sheets, titles)],
         }
         data = await api.create_model(body)
-        out = {k: data.get(k) for k in ("id", "uuid", "visibility", "status", "created_via", "uploads_left_today")}
+        out = {k: data.get(k) for k in ("id", "uuid", "visibility", "status", "created_via")}
         out["page_url"] = page(data)
         out["uploaded_file"] = model_file.name
         processing = " It's still processing; previews appear in a few minutes." if data.get("status") == "processing" else ""
-        out["message"] = f"Uploaded as a {data.get('visibility', visibility)} model: {out['page_url']}.{processing}{_left(data)}"
+        out["message"] = f"Uploaded as a {data.get('visibility', visibility)} model: {out['page_url']}.{processing}"
         return {k: v for k, v in out.items() if v is not None}
 
     @tool(title="Upload a new version", annotations=WRITE)
@@ -350,7 +317,7 @@ def register(mcp, api: ApiClient, settings: Settings, tool_errors, model_ref) ->
     ) -> dict:
         """Upload a new version of the user's own model. Only after the user's explicit yes.
         Write real notes on what changed, and refresh the README when dimensions changed.
-        Uses one of the day's uploads; nothing is sent when the notes or README fall short."""
+        Nothing is sent when the notes or README fall short."""
         ref = model_ref(model_id)
         missing = []
         if len(notes.strip()) < MIN_NOTES:
@@ -360,7 +327,6 @@ def register(mcp, api: ApiClient, settings: Settings, tool_errors, model_ref) ->
         if missing:
             raise documentation_error(missing)
         source = check_model_source(path)
-        await check_uploads_left(api)
         with ExitStack() as stack:
             if source.is_dir():
                 tmp = Path(stack.enter_context(tempfile.TemporaryDirectory(prefix="communitycad-")))
@@ -372,10 +338,9 @@ def register(mcp, api: ApiClient, settings: Settings, tool_errors, model_ref) ->
             "model_id": data.get("model_id", ref),
             "version_number": data.get("version_number"),
             "page_url": data.get("page_url") or settings.model_url(ref),
-            "uploads_left_today": data.get("uploads_left_today"),
             "uploaded_file": staged.name,
         }
-        out["message"] = f"Uploaded version {out['version_number']}: {out['page_url']}.{_left(data)}"
+        out["message"] = f"Uploaded version {out['version_number']}: {out['page_url']}."
         return {k: v for k, v in out.items() if v is not None}
 
     @tool(title="Add images", annotations=WRITE)
@@ -385,12 +350,10 @@ def register(mcp, api: ApiClient, settings: Settings, tool_errors, model_ref) ->
         paths: Annotated[list[str], Field(description="JPEG, PNG, GIF or WebP pictures.", min_length=1, max_length=MAX_IMAGES)],
         captions: Annotated[list[str] | None, Field(description="One caption per image, or none.")] = None,
     ) -> dict:
-        """Add pictures to the user's own model. Only after the user's explicit yes. Uses one of
-        the day's uploads (one per call, not per picture)."""
+        """Add pictures to the user's own model. Only after the user's explicit yes."""
         ref = model_ref(model_id)
         images = _typed_files(paths, IMAGE_TYPES, "image", "Images")
         caps = _optional_list(captions, len(images), "caption")
-        await check_uploads_left(api)
         staged = [await stage(api, p) for p in images]
         data = await api.add_images(ref, [{"staged_upload": s.ticket, "caption": c} for s, c in zip(staged, caps)])
         return _added(data, ref, "picture")
@@ -403,11 +366,10 @@ def register(mcp, api: ApiClient, settings: Settings, tool_errors, model_ref) ->
         titles: Annotated[list[str] | None, Field(description="One title per datasheet, or none.")] = None,
     ) -> dict:
         """Attach PDF datasheets to the user's own model (their text becomes searchable after a
-        few minutes). Only after the user's explicit yes. Uses one of the day's uploads per call."""
+        few minutes). Only after the user's explicit yes."""
         ref = model_ref(model_id)
         sheets = _typed_files(paths, DATASHEET_TYPES, "datasheet", "Datasheets")
         names = _optional_list(titles, len(sheets), "datasheet title")
-        await check_uploads_left(api)
         staged = [await stage(api, p) for p in sheets]
         data = await api.add_datasheets(ref, [{"staged_upload": s.ticket, "title": t} for s, t in zip(staged, names)])
         return _added(data, ref, "datasheet")
@@ -418,8 +380,7 @@ def register(mcp, api: ApiClient, settings: Settings, tool_errors, model_ref) ->
         return {
             "added": n,
             "page_url": url,
-            "uploads_left_today": data.get("uploads_left_today"),
-            "message": f"Added {n} {noun}{'s' if n != 1 else ''} to {url}.{_left(data)}",
+            "message": f"Added {n} {noun}{'s' if n != 1 else ''} to {url}.",
         }
 
     @tool(title="Edit a model", annotations=EDIT)
