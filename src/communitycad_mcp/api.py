@@ -6,7 +6,8 @@ CommunityCADError and the tool reports it.
 
 from __future__ import annotations
 
-from typing import Any, Callable
+from pathlib import Path
+from typing import Any, AsyncIterator, Callable
 
 import httpx
 
@@ -80,6 +81,7 @@ class ApiClient:
         params: dict[str, Any] | None = None,
         json: Any = None,
         signed_out_retry: bool = True,
+        forget_on_401: bool = True,
     ) -> httpx.Response:
         token = self._token_getter() if auth else None
         resp = await self._send(method, path, token, params=params, json=json)
@@ -89,6 +91,9 @@ class ApiClient:
             self.forget_token(token)
             token = None
             resp = await self._send(method, path, None, params=params, json=json)
+        elif resp.status_code == 401 and token and forget_on_401:
+            # A write that needs the account: forget the dead sign-in, don't resend.
+            self.forget_token(token)
         if resp.is_success:
             return resp
         raise from_response(resp, signed_in=bool(token), download=download)
@@ -153,7 +158,7 @@ class ApiClient:
         return await self._json("POST", "/auth/tokens/current/scopes", json={"scope": scope}, signed_out_retry=False)
 
     async def revoke_current_token(self) -> None:
-        await self._request("DELETE", "/auth/tokens/current", signed_out_retry=False)
+        await self._request("DELETE", "/auth/tokens/current", signed_out_retry=False, forget_on_401=False)
 
     # -- account -----------------------------------------------------------
 
@@ -199,6 +204,39 @@ class ApiClient:
     def stream_file(self, url: str):
         """Stream a presigned file URL (no API token is sent)."""
         return self._files.stream("GET", url)
+
+    # -- uploads (need models:write) -------------------------------------------
+
+    async def stage_upload(self, filename: str, size: int, content_type: str | None) -> dict[str, Any]:
+        return await self._json(
+            "POST", "/uploads", json={"filename": filename, "size": size, "content_type": content_type}, signed_out_retry=False
+        )
+
+    async def send_staged(self, method: str, url: str, headers: dict[str, str], path: Path, size: int) -> None:
+        """Send the whole file to the staging URL the API returned (no API token is sent)."""
+
+        async def chunks() -> AsyncIterator[bytes]:
+            with path.open("rb") as fh:
+                while block := fh.read(1024 * 1024):
+                    yield block
+
+        headers = {**{str(k): str(v) for k, v in headers.items()}, "Content-Length": str(size)}
+        try:
+            resp = await self._files.request(
+                method, url, content=chunks(), headers=headers, timeout=httpx.Timeout(self.settings.timeout_s, write=600.0)
+            )
+        except httpx.HTTPError:
+            raise CommunityCADError(
+                "upstream_unavailable", f"Sending {path.name} failed. Nothing was published; try again later."
+            ) from None
+        if not resp.is_success:
+            raise CommunityCADError(
+                "upstream_unavailable",
+                f"Storage refused {path.name} (HTTP {resp.status_code}). Nothing was published; try again later.",
+            )
+
+    async def create_model(self, body: dict[str, Any]) -> dict[str, Any]:
+        return await self._json("POST", "/models", json=body, signed_out_retry=False)
 
     # -- datasheets ----------------------------------------------------------
 

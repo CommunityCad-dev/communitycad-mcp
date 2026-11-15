@@ -1,0 +1,5 @@
+{
+  "error": "documentation_missing",
+  "detail": "This upload needs more documentation.",
+  "missing": ["README section: Dimensions"]
+}

@@ -362,6 +362,10 @@ def build_server(
 
     images.register(mcp, api, settings, _tool_errors, _model_ref)
 
+    from . import uploads
+
+    uploads.register(mcp, api, settings, _tool_errors, _model_ref)
+
     # -- prompts and resources ---------------------------------------------------
 
     @mcp.prompt(name="find-a-part", description="Find a real part on CommunityCAD that fits a design.")

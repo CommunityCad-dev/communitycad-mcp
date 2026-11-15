@@ -12,6 +12,8 @@ ALL = WORKING | {
     "list_datasheets", "read_datasheet", "search_datasheet", "get_comments", "get_scores",
     "get_company", "search_companies", "get_creator", "find_similar", "show_images",
 }
+UPLOADS = {"upload_model"}
+ALL = ALL | UPLOADS
 
 
 async def test_tool_list(settings):
@@ -20,6 +22,8 @@ async def test_tool_list(settings):
         assert {t.name for t in tools} == ALL
         assert all(t.description for t in tools)
         assert not any("comment" in t.name and t.name.startswith(("post", "add")) for t in tools)
+        # Uploads can't delete anything.
+        assert not any(w in t.name for t in tools for w in ("delete", "remove"))
 
 
 async def test_instructions(settings):

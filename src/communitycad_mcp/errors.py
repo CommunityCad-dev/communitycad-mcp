@@ -27,6 +27,10 @@ CODES = {
     "invalid_request",
     "forbidden",
     "not_available_yet",
+    "documentation_missing",
+    "license_required",
+    "upload_limit_reached",
+    "conflict",
 }
 
 # Extra fields from an API error body that are safe and useful to pass on.
@@ -39,6 +43,9 @@ _PASSTHROUGH = (
     "sign_up_url",
     "account_hint",
     "request_url",
+    "missing",
+    "limit",
+    "remaining",
 )
 
 
@@ -124,11 +131,20 @@ def from_response(resp: httpx.Response, *, signed_in: bool, download: bool = Fal
         if text and "file" in text.lower():
             return CommunityCADError("model_not_found", "That file isn't part of this model's latest version.")
         return CommunityCADError("model_not_found", "No model with that ID, or it isn't visible to this account.")
+    if status == 409:
+        return CommunityCADError("conflict", text or "CommunityCAD can't make this change here.", **extras)
     if status == 410:
         return CommunityCADError("model_unavailable", text or "This model is no longer available.")
     if status == 413:
         return CommunityCADError("file_too_large", text or "The file is too large.")
     if status == 429:
+        if api_code == "upload_limit_reached":
+            return CommunityCADError(
+                "upload_limit_reached",
+                "The daily upload limit is reached (the same as on the website). Nothing was published. "
+                "Don't retry; it resets at reset_at.",
+                **extras,
+            )
         if api_code == "download_limit_reached":
             return CommunityCADError(
                 "download_limit_reached",
@@ -142,6 +158,17 @@ def from_response(resp: httpx.Response, *, signed_in: bool, download: bool = Fal
             retry_after_s=int(retry_after) if retry_after and retry_after.isdigit() else None,
             **extras,
         )
+    if status == 422 and api_code == "documentation_missing":
+        return CommunityCADError(
+            "documentation_missing",
+            (text or "The documentation is incomplete.")
+            + " Fill in what's listed in `missing` from what the user and the files say, then try again.",
+            **extras,
+        )
+    if status == 422 and api_code == "license_required":
+        from .uploads import license_error
+
+        return license_error()
     if status in (400, 422):
         return CommunityCADError("invalid_request", text or "CommunityCAD rejected the request's arguments.")
     return CommunityCADError("upstream_unavailable", f"CommunityCAD answered with an error (HTTP {status}). Try again later.")

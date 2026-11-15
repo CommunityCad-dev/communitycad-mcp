@@ -1,0 +1,7 @@
+{
+  "error": "upload_limit_reached",
+  "detail": "You've used today's 10 uploads. They reset at midnight UTC.",
+  "limit": 10,
+  "remaining": 0,
+  "reset_at": "2026-11-15T00:00:00Z"
+}

@@ -1,0 +1,10 @@
+{
+  "staged_upload": "stg_example_ticket",
+  "upload": {
+    "protocol": "put",
+    "url": "https://api.example.test/staging/stg_example_ticket",
+    "method": "PUT",
+    "headers": {"Content-Type": "application/octet-stream", "x-example-signature": "example-signature"}
+  },
+  "max_bytes": 262144000
+}
