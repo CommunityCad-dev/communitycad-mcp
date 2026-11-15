@@ -12,7 +12,7 @@ ALL = WORKING | {
     "list_datasheets", "read_datasheet", "search_datasheet", "get_comments", "get_scores",
     "get_company", "search_companies", "get_creator", "find_similar", "show_images",
 }
-UPLOADS = {"upload_model"}
+UPLOADS = {"upload_model", "upload_version"}
 ALL = ALL | UPLOADS
 
 

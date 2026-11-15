@@ -308,3 +308,43 @@ def register(mcp, api: ApiClient, settings: Settings, tool_errors, model_ref) ->
         processing = " It's still processing; previews appear in a few minutes." if data.get("status") == "processing" else ""
         out["message"] = f"Uploaded as a {data.get('visibility', visibility)} model: {out['page_url']}.{processing}{_left(data)}"
         return {k: v for k, v in out.items() if v is not None}
+
+    @tool(annotations=WRITE)
+    @tool_errors
+    async def upload_version(
+        model_id: Annotated[str, Field(description="The user's own model (id or page URL).")],
+        path: Annotated[str, Field(description="The new CAD file, or a folder to upload as a ZIP.")],
+        notes: Annotated[str, Field(description=f"What changed, at least {MIN_NOTES} characters.", max_length=5000)],
+        readme_markdown: Annotated[
+            str | None,
+            Field(description="The refreshed README (same sections as upload_model). Send it when dimensions or usage changed.", max_length=100_000),
+        ] = None,
+    ) -> dict:
+        """Upload a new version of the user's own model. Only after the user's explicit yes.
+        Write real notes on what changed, and refresh the README when dimensions changed.
+        Uses one of the day's uploads; nothing is sent when the notes or README fall short."""
+        ref = model_ref(model_id)
+        missing = []
+        if len(notes.strip()) < MIN_NOTES:
+            missing.append(f"version notes too short ({len(notes.strip())} of {MIN_NOTES} characters)")
+        if readme_markdown is not None:
+            missing += readme_missing(readme_markdown)
+        if missing:
+            raise documentation_error(missing)
+        source = check_model_source(path)
+        with ExitStack() as stack:
+            if source.is_dir():
+                tmp = Path(stack.enter_context(tempfile.TemporaryDirectory(prefix="communitycad-")))
+                source = zip_folder(source, tmp)
+            staged = await stage(api, source)
+        body = {"staged_upload": staged.ticket, "notes": notes.strip(), "readme_markdown": readme_markdown.strip() if readme_markdown else None}
+        data = await api.create_version(ref, body)
+        out = {
+            "model_id": data.get("model_id", ref),
+            "version_number": data.get("version_number"),
+            "page_url": data.get("page_url") or settings.model_url(ref),
+            "uploads_left_today": data.get("uploads_left_today"),
+            "uploaded_file": staged.name,
+        }
+        out["message"] = f"Uploaded version {out['version_number']}: {out['page_url']}.{_left(data)}"
+        return {k: v for k, v in out.items() if v is not None}

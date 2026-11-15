@@ -266,3 +266,50 @@ async def test_revoked_sign_in_is_forgotten(run, api_mock, uploader, files, sett
     err = await run.err("upload_model", model_args(files))
     assert err["code"] == "not_signed_in" and "signed out" in err["note"]
     assert TokenStore(settings.token_path).load() is None
+
+
+# -- versions, images, datasheets, edits -----------------------------------------------
+
+
+async def test_upload_version(run, api_mock, uploader, files):
+    stage, put = staging(api_mock)
+    route = api_mock.post(f"{V1}/models/{UUID}/versions").respond(201, json=fixture("version_created.json"))
+    out = await run.ok(
+        "upload_version",
+        {
+            "model_id": f"https://example.test/m/{UUID}",
+            "path": str(files / "clip.step"),
+            "notes": "Board holes moved 2 mm outward to fit 54 x 30 mm boards.",
+            "readme_markdown": README,
+        },
+    )
+    assert out["version_number"] == 2 and out["uploads_left_today"] == 8
+    assert out["message"].startswith("Uploaded version 2:")
+    assert json.loads(route.calls[0].request.content) == {
+        "staged_upload": "stg_example_1",
+        "notes": "Board holes moved 2 mm outward to fit 54 x 30 mm boards.",
+        "readme_markdown": README.strip(),
+    }
+    assert put.call_count == 1
+
+
+async def test_upload_version_checks_notes_and_readme_first(run, api_mock, uploader, files):
+    err = await run.err("upload_version", {"model_id": UUID, "path": str(files / "clip.step"), "notes": "fix"})
+    assert err["code"] == "documentation_missing" and err["missing"] == ["version notes too short (3 of 20 characters)"]
+    err = await run.err(
+        "upload_version",
+        {"model_id": UUID, "path": str(files / "clip.step"), "notes": "Thicker walls, 2.4 mm now.", "readme_markdown": "# Clip"},
+    )
+    assert "README section: Dimensions" in err["missing"]
+    no_requests(api_mock)
+
+
+async def test_upload_version_synced_model(run, api_mock, uploader, files):
+    staging(api_mock)
+    api_mock.post(f"{V1}/models/{UUID}/versions").respond(
+        409, json={"error": "synced_from_github", "detail": "This model follows its GitHub repository; push the change there."}
+    )
+    err = await run.err(
+        "upload_version", {"model_id": UUID, "path": str(files / "clip.step"), "notes": "Thicker walls, 2.4 mm now."}
+    )
+    assert err["code"] == "conflict" and "GitHub" in err["message"]
