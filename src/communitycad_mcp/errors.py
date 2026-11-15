@@ -142,7 +142,7 @@ def from_response(resp: httpx.Response, *, signed_in: bool, download: bool = Fal
         if api_code == "upload_limit_reached":
             return CommunityCADError(
                 "upload_limit_reached",
-                "The daily upload limit is reached (the same as on the website). Nothing was published. "
+                "No AI uploads are left today (10 a day per account). Nothing was published. "
                 "Don't retry; it resets at reset_at.",
                 **extras,
             )

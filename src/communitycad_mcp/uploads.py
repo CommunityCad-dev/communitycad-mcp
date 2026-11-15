@@ -241,7 +241,7 @@ async def check_uploads_left(api: ApiClient) -> None:
     if isinstance(left, int) and not isinstance(left, bool) and left <= 0:
         raise CommunityCADError(
             "upload_limit_reached",
-            "No uploads are left today (the same limit as on the website). Nothing was uploaded. "
+            "No AI uploads are left today (10 a day per account). Nothing was uploaded. "
             "Don't retry; it resets at uploads_reset_at.",
             remaining=0,
             uploads_reset_at=status.get("uploads_reset_at"),
