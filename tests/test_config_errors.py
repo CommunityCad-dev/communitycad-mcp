@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import httpx
@@ -81,5 +82,6 @@ def test_token_never_in_reprs(tmp_path):
     store.save(tok)
     for text in (repr(tok), str(tok), repr(store), repr(CommunityCADError("not_signed_in", "x"))):
         assert TOKEN not in text
-    assert (tmp_path / "t.json").stat().st_mode & 0o777 == 0o600
+    if os.name != "nt":  # Windows has no POSIX modes; the per-user config dir protects it
+        assert (tmp_path / "t.json").stat().st_mode & 0o777 == 0o600
     assert store.load().access_token == TOKEN

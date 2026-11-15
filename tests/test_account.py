@@ -1,4 +1,5 @@
 import json
+import os
 
 import httpx
 
@@ -30,8 +31,9 @@ async def test_link_two_step_then_unlink(run, api_mock, settings):
         "message": "Signed in to CommunityCAD as example-user.",
     }
     assert TOKEN not in json.dumps(first) + json.dumps(done)
-    assert settings.token_path.stat().st_mode & 0o777 == 0o600
-    assert settings.token_path.parent.stat().st_mode & 0o777 == 0o700
+    if os.name != "nt":  # Windows has no POSIX modes; the per-user config dir protects it
+        assert settings.token_path.stat().st_mode & 0o777 == 0o600
+        assert settings.token_path.parent.stat().st_mode & 0o777 == 0o700
 
     again = await run.ok("link_account")
     assert again["status"] == "already_linked"
