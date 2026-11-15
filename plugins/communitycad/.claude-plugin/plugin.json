@@ -1,0 +1,13 @@
+{
+  "name": "communitycad",
+  "version": "0.1.0",
+  "description": "Search CommunityCAD for real, dimensionally accurate parts, read datasheets, comments and accuracy scores, and download STEP, STL and other CAD files into your project.",
+  "author": {
+    "name": "CommunityCAD",
+    "url": "https://communitycad.dev"
+  },
+  "homepage": "https://communitycad.dev/docs/mcp",
+  "repository": "https://github.com/CommunityCad-dev/communitycad-mcp",
+  "license": "Apache-2.0",
+  "keywords": ["cad", "step", "stl", "datasheet", "parts", "mcp"]
+}

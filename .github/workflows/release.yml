@@ -31,6 +31,18 @@ jobs:
         with:
           name: dist
           path: dist/
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Build the Claude Desktop extension
+        run: |
+          mkdir -p bundle
+          npx -y @anthropic-ai/mcpb@2 validate mcpb/manifest.json
+          npx -y @anthropic-ai/mcpb@2 pack mcpb "bundle/communitycad-mcp-${GITHUB_REF_NAME#v}.mcpb"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mcpb
+          path: bundle/
 
   publish-pypi:
     name: Publish to PyPI
@@ -59,6 +71,10 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: dist
+          path: dist/
+      - uses: actions/download-artifact@v4
+        with:
+          name: mcpb
           path: dist/
       - name: Release notes from the changelog
         run: |

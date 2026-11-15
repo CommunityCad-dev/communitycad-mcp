@@ -25,6 +25,8 @@ Do these once, before the first release.
 1. Pick the version (semantic versioning: `0.1.1` for fixes, `0.2.0` for new tools or behaviour).
 2. Set it in every place that names it:
    - `pyproject.toml` (`version`) and `src/communitycad_mcp/__init__.py` (`__version__`), then run `uv lock`
+   - `mcpb/manifest.json` (`version`) and `mcpb/pyproject.toml` (`version` and the `communitycad-mcp==` pin)
+   - `plugins/communitycad/.claude-plugin/plugin.json` (`version`)
 3. In `CHANGELOG.md`, move the *Unreleased* entries under a new `## [x.y.z] - YYYY-MM-DD` heading and update the compare links at the bottom.
 4. Check locally:
 
@@ -41,6 +43,6 @@ Do these once, before the first release.
    git push origin main vx.y.z
    ```
 
-The workflow checks that the tag matches the package version, runs the tests, builds the wheel and sdist, publishes them to PyPI, and creates a GitHub release with the changelog section as notes and the built files attached.
+The workflow checks that the tag matches the package version, runs the tests, builds the wheel and sdist, publishes them to PyPI, builds the Claude Desktop extension (`communitycad-mcp-x.y.z.mcpb`), and creates a GitHub release with the changelog section as notes and all of those files attached.
 
 If the publish step fails after PyPI accepted the files, don't reuse the version: PyPI never accepts the same file name twice. Fix the problem and release the next patch version.

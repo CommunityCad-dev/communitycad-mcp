@@ -36,6 +36,17 @@ It finds Claude Code, Claude Desktop, Cursor, VS Code and Windsurf on Windows, m
 
 Running `communitycad-mcp` with no command starts the server over stdio; that's how the apps launch it.
 
+**Claude Code plugin.** Instead of `install`, you can add CommunityCAD as a plugin: the same server plus a `find-a-part` skill that tells Claude how to use it well. In Claude Code:
+
+```text
+/plugin marketplace add CommunityCad-dev/communitycad-mcp
+/plugin install communitycad@communitycad
+```
+
+Then run `/reload-plugins` (or restart Claude Code). From a shell it's `claude plugin marketplace add CommunityCad-dev/communitycad-mcp` and `claude plugin install communitycad@communitycad`. Update with `/plugin marketplace update communitycad`; remove with `/plugin uninstall communitycad@communitycad`. Use either the plugin or `install` for Claude Code, not both.
+
+**Claude Desktop extension.** Download `communitycad-mcp-<version>.mcpb` from the [latest release](https://github.com/CommunityCad-dev/communitycad-mcp/releases/latest), open it (or drag it onto Settings, Extensions) and click Install. You can choose the download folder and the largest download size there. The extension is a few kilobytes: Claude Desktop sets up Python and the `communitycad-mcp` package itself, so it doesn't need uv.
+
 <details><summary>Set it up by hand</summary>
 
 **Claude Code**

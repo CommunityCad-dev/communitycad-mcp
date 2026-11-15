@@ -1,0 +1,18 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "communitycad",
+  "description": "CommunityCAD for Claude Code: find real parts, read their datasheets and download CAD files into your design.",
+  "owner": {
+    "name": "CommunityCAD",
+    "url": "https://communitycad.dev"
+  },
+  "plugins": [
+    {
+      "name": "communitycad",
+      "description": "Search CommunityCAD for real, dimensionally accurate parts, read datasheets, comments and accuracy scores, and download STEP, STL and other CAD files into your project.",
+      "source": "./plugins/communitycad",
+      "category": "design",
+      "homepage": "https://communitycad.dev/docs/mcp"
+    }
+  ]
+}

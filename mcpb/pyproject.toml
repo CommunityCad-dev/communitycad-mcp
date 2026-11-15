@@ -1,0 +1,8 @@
+# The Claude Desktop extension runs the released package from PyPI, so the
+# bundle holds only this file, the manifest and a two-line launcher.
+[project]
+name = "communitycad-desktop-extension"
+version = "0.1.0"
+description = "Claude Desktop extension for communitycad-mcp"
+requires-python = ">=3.10"
+dependencies = ["communitycad-mcp==0.1.0"]

@@ -1,0 +1,170 @@
+{
+  "$schema": "https://raw.githubusercontent.com/anthropics/mcpb/main/dist/mcpb-manifest-v0.4.schema.json",
+  "manifest_version": "0.4",
+  "name": "communitycad-mcp",
+  "display_name": "CommunityCAD",
+  "version": "0.1.0",
+  "description": "Find real parts on CommunityCAD, read their datasheets and download CAD files into your design.",
+  "long_description": "Search CommunityCAD for real, dimensionally accurate parts: vendor components, hardware and community models. Read datasheets, comments and accuracy scores, and save STEP, STL and other CAD files to a folder your CAD tool can open. Downloads follow the same limits as the website. Sign in from the chat by asking Claude to link your CommunityCAD account.",
+  "author": {
+    "name": "CommunityCAD",
+    "url": "https://communitycad.dev"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CommunityCad-dev/communitycad-mcp"
+  },
+  "homepage": "https://communitycad.dev",
+  "documentation": "https://communitycad.dev/docs/mcp",
+  "support": "https://github.com/CommunityCad-dev/communitycad-mcp/issues",
+  "server": {
+    "type": "uv",
+    "entry_point": "src/server.py",
+    "mcp_config": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "${__dirname}",
+        "src/server.py"
+      ],
+      "env": {
+        "COMMUNITYCAD_DOWNLOAD_DIR": "${user_config.download_dir}",
+        "COMMUNITYCAD_MAX_DOWNLOAD_MB": "${user_config.max_download_mb}"
+      }
+    }
+  },
+  "tools": [
+    {
+      "name": "account_status",
+      "description": "Your plan, downloads left and when they reset, signed in or out"
+    },
+    {
+      "name": "link_account",
+      "description": "Link your CommunityCAD account with a short code"
+    },
+    {
+      "name": "unlink_account",
+      "description": "Sign this computer out of CommunityCAD"
+    },
+    {
+      "name": "search_models",
+      "description": "Search parts by keywords or meaning, with size, file type and licence filters"
+    },
+    {
+      "name": "get_model",
+      "description": "A model's files, size, licence, datasheets and page link"
+    },
+    {
+      "name": "show_images",
+      "description": "Show a model's preview pictures (never uses a download)"
+    },
+    {
+      "name": "find_similar",
+      "description": "Models similar to one you have"
+    },
+    {
+      "name": "get_company",
+      "description": "A company and its published parts"
+    },
+    {
+      "name": "search_companies",
+      "description": "Find companies that publish parts"
+    },
+    {
+      "name": "get_creator",
+      "description": "A creator's profile and models"
+    },
+    {
+      "name": "list_datasheets",
+      "description": "A model's datasheets"
+    },
+    {
+      "name": "read_datasheet",
+      "description": "Read a datasheet's text"
+    },
+    {
+      "name": "search_datasheet",
+      "description": "Find a value or section in a datasheet"
+    },
+    {
+      "name": "get_comments",
+      "description": "What other people said about a model"
+    },
+    {
+      "name": "get_scores",
+      "description": "A model's accuracy and community scores"
+    },
+    {
+      "name": "check_download",
+      "description": "What a download would cost before taking it"
+    },
+    {
+      "name": "download_file",
+      "description": "Save a model's file to your download folder"
+    },
+    {
+      "name": "upload_model",
+      "description": "Publish a model from a file or folder, after you say yes"
+    },
+    {
+      "name": "upload_version",
+      "description": "Add a new version of your own model, after you say yes"
+    },
+    {
+      "name": "add_images",
+      "description": "Add pictures to your own model, after you say yes"
+    },
+    {
+      "name": "add_datasheets",
+      "description": "Add datasheets to your own model, after you say yes"
+    },
+    {
+      "name": "edit_model",
+      "description": "Change your own model's details, after you say yes"
+    }
+  ],
+  "tools_generated": false,
+  "prompts_generated": true,
+  "keywords": [
+    "cad",
+    "step",
+    "stl",
+    "datasheet",
+    "parts",
+    "3d printing",
+    "engineering"
+  ],
+  "license": "Apache-2.0",
+  "privacy_policies": [
+    "https://communitycad.dev/privacy"
+  ],
+  "compatibility": {
+    "platforms": [
+      "darwin",
+      "win32",
+      "linux"
+    ],
+    "runtimes": {
+      "python": ">=3.10"
+    }
+  },
+  "user_config": {
+    "download_dir": {
+      "type": "directory",
+      "title": "Download folder",
+      "description": "Downloaded files are saved to a folder per model inside this one.",
+      "default": "${HOME}/CommunityCAD",
+      "required": false
+    },
+    "max_download_mb": {
+      "type": "number",
+      "title": "Largest download (MB)",
+      "description": "Files bigger than this are refused before any download is counted.",
+      "default": 500,
+      "min": 1,
+      "max": 10000,
+      "required": false
+    }
+  }
+}

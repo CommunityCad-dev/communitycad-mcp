@@ -38,3 +38,10 @@ jobs:
         run: uv build
       - name: Check metadata
         run: uvx twine check --strict dist/*
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Validate and pack the Claude Desktop extension
+        run: |
+          npx -y @anthropic-ai/mcpb@2 validate mcpb/manifest.json
+          npx -y @anthropic-ai/mcpb@2 pack mcpb dist/communitycad-mcp.mcpb

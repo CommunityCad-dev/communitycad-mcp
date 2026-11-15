@@ -18,6 +18,8 @@ First public release.
 - Downloads: `check_download` and `download_file`, counted exactly like downloads on communitycad.dev, with the model's licence and attribution line.
 - Uploads, each only after the user's explicit yes: `upload_model`, `upload_version`, `add_images`, `add_datasheets`, `edit_model`.
 - Prompts `find-a-part` and `review-a-model`; resources for model READMEs and datasheets.
+- Claude Code plugin marketplace in this repository, with a `find-a-part` skill.
+- Claude Desktop extension (`.mcpb`) attached to each GitHub release.
 
 [Unreleased]: https://github.com/CommunityCad-dev/communitycad-mcp/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/CommunityCad-dev/communitycad-mcp/releases/tag/v0.1.0
