@@ -14,12 +14,12 @@ import respx
 
 from communitycad_mcp.__main__ import main
 from communitycad_mcp.cli import cmd_doctor, parser, run
-from communitycad_mcp.config import Settings
 from communitycad_mcp.installer import (
     FILE_APPS,
     Host,
     Launch,
     app_key,
+    configured_apps,
     install,
     read_config,
     uninstall,
@@ -71,19 +71,36 @@ def vscode_dir(host: Host) -> Path:
     }[host.system]
 
 
+def xdg(host: Host) -> Path:
+    return host.home / ".config"
+
+
 def all_app_dirs(host: Host) -> dict[str, Path]:
     dirs = {
         "claude-desktop": desktop_dir(host),
         "cursor": host.home / ".cursor",
         "vscode": vscode_dir(host),
         "windsurf": host.home / ".codeium" / "windsurf",
+        "opencode": xdg(host) / "opencode",
+        "codex": host.home / ".codex",
+        "gemini": host.home / ".gemini",
+        "copilot": host.home / ".copilot",
+        "zed": host.home / "AppData" / "Roaming" / "Zed" if host.system == "Windows" else xdg(host) / "zed",
     }
     for d in dirs.values():
         d.mkdir(parents=True, exist_ok=True)
     return dirs
 
 
-FILES = {"claude-desktop": "claude_desktop_config.json", "cursor": "mcp.json", "vscode": "mcp.json", "windsurf": "mcp_config.json"}
+FILES = {
+    "claude-desktop": "claude_desktop_config.json", "cursor": "mcp.json", "vscode": "mcp.json",
+    "windsurf": "mcp_config.json", "opencode": "opencode.json", "codex": "config.toml",
+    "gemini": "settings.json", "copilot": "mcp-config.json", "zed": "settings.json",
+}
+LABELS = {
+    "claude-desktop": "Claude Desktop", "cursor": "Cursor", "vscode": "VS Code", "windsurf": "Windsurf",
+    "opencode": "OpenCode", "codex": "Codex", "gemini": "Gemini CLI", "copilot": "GitHub Copilot CLI", "zed": "Zed",
+}
 
 
 @pytest.mark.parametrize("system", ["Windows", "Darwin", "Linux"])
@@ -96,16 +113,20 @@ def test_install_every_app_per_os(tmp_path, system):
 
     results = install(host, Launch.for_host(host))
     status = {r.app: r.status for r in results}
-    assert status == {
-        "Claude Code": "not_found", "Claude Desktop": "added", "Cursor": "added", "VS Code": "added", "Windsurf": "added",
-    }
-    desktop = read_config(dirs["claude-desktop"] / FILES["claude-desktop"])
-    # Claude Desktop gets the full uvx path (GUI apps may not see the shell PATH).
-    assert desktop["mcpServers"]["communitycad"] == {"command": "/bin/uvx", "args": ["communitycad-mcp"]}
+    assert status == {"Claude Code": "not_found", **{label: "added" for label in LABELS.values()}}
+    f = {k: dirs[k] / name for k, name in FILES.items()}
+    # GUI apps get the full uvx path (they may not see the shell PATH).
+    assert read_config(f["claude-desktop"])["mcpServers"]["communitycad"] == {"command": "/bin/uvx", "args": ["communitycad-mcp"]}
+    assert read_config(f["zed"])["context_servers"]["communitycad"] == {"command": "/bin/uvx", "args": ["communitycad-mcp"]}
     assert read_config(cursor) == {"mcpServers": {"other": {"command": "x"}, "communitycad": ENTRY}, "keep": 1}
-    vs = read_config(dirs["vscode"] / "mcp.json")
-    assert vs == {"servers": {"communitycad": {"type": "stdio", **ENTRY}}}
-    assert read_config(dirs["windsurf"] / "mcp_config.json")["mcpServers"]["communitycad"] == ENTRY
+    assert read_config(f["vscode"]) == {"servers": {"communitycad": {"type": "stdio", **ENTRY}}}
+    assert read_config(f["windsurf"])["mcpServers"]["communitycad"] == ENTRY
+    assert read_config(f["gemini"]) == {"mcpServers": {"communitycad": ENTRY}}
+    assert read_config(f["copilot"]) == {"mcpServers": {"communitycad": {"type": "local", **ENTRY, "tools": ["*"]}}}
+    assert read_config(f["opencode"]) == {
+        "mcp": {"communitycad": {"type": "local", "command": ["uvx", "communitycad-mcp"], "enabled": True}}
+    }
+    assert f["codex"].read_text(encoding="utf-8") == '[mcp_servers.communitycad]\ncommand = "uvx"\nargs = ["communitycad-mcp"]\n'
     # The existing file was backed up; new files need no backup.
     assert (dirs["cursor"] / "mcp.json.bak-20260102-030405").read_text(encoding="utf-8").startswith('{"mcpServers"')
     assert not list(dirs["windsurf"].glob("*.bak-*"))
@@ -117,13 +138,202 @@ def test_install_every_app_per_os(tmp_path, system):
     again = install(host, Launch.for_host(host))
     assert {r.status for r in again if r.app != "Claude Code"} == {"unchanged"}
     assert len(list(dirs["cursor"].glob("*.bak-*"))) == 1
+    assert not list(dirs["codex"].glob("*.bak-*"))
+
+    # doctor's view: every app detected and set up.
+    states = {s.label: s for s in configured_apps(host)}
+    assert all(states[label].command in ("uvx", "/bin/uvx") for label in LABELS.values())
 
     # Uninstall takes out only our entry.
     gone = uninstall(host)
-    assert {r.app: r.status for r in gone}["Cursor"] == "removed"
+    assert {r.app: r.status for r in gone} == {"Claude Code": "absent", **{label: "removed" for label in LABELS.values()}}
     assert read_config(cursor) == {"mcpServers": {"other": {"command": "x"}}, "keep": 1}
-    assert read_config(dirs["vscode"] / "mcp.json") == {"servers": {}}
+    assert read_config(f["vscode"]) == {"servers": {}}
+    assert read_config(f["opencode"]) == {"mcp": {}}
+    assert "communitycad" not in f["codex"].read_text(encoding="utf-8")
     assert {r.status for r in uninstall(host)} == {"absent"}
+
+
+ZED_SETTINGS = """// Zed settings
+//
+// For information on how to configure Zed, see the Zed documentation.
+{
+  "theme": "One Dark", // my theme
+  "context_servers": {
+    /* a server I wrote */
+    "mine": {"command": "node", "args": ["srv.js"]},
+  },
+  "vim_mode": true,
+}
+"""
+
+
+def test_json_with_comments_keeps_every_other_byte(tmp_path):
+    host = make_host(tmp_path, "Darwin")
+    f = all_app_dirs(host)["zed"] / "settings.json"
+    f.write_text(ZED_SETTINGS, encoding="utf-8")
+    [r] = install(host, Launch.for_host(host), ["zed"])
+    assert r.status == "added"
+    text = f.read_text(encoding="utf-8")
+    assert text.startswith(ZED_SETTINGS[: ZED_SETTINGS.index('"mine"')])
+    assert '"vim_mode": true,\n}\n' in text and "// my theme" in text and "/* a server I wrote */" in text
+    assert read_config(f)["context_servers"] == {
+        "mine": {"command": "node", "args": ["srv.js"]},
+        "communitycad": {"command": "/bin/uvx", "args": ["communitycad-mcp"]},
+    }
+    assert [x.status for x in install(host, Launch.for_host(host), ["zed"])] == ["unchanged"]
+    [r] = uninstall(host, ["zed"])
+    assert r.status == "removed"
+    assert f.read_text(encoding="utf-8") == ZED_SETTINGS
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "{}",
+        "",
+        '{\n  // nothing yet\n}\n',
+        '{\n  "a": 1 // note\n}\n',
+        '{"a": [1, 2,], "servers": {},}',
+        '{"servers": {"x": {"command": "y"} /* end */}}',
+    ],
+)
+def test_json_edits_round_trip(tmp_path, text):
+    host = make_host(tmp_path, "Linux")
+    f = all_app_dirs(host)["vscode"] / "mcp.json"
+    f.write_text(text, encoding="utf-8")
+    before = read_config(f)
+    [r] = install(host, Launch.for_host(host), ["vscode"])
+    assert r.status == "added"
+    after = read_config(f)
+    assert after["servers"]["communitycad"] == {"type": "stdio", **ENTRY}
+    assert {k: v for k, v in after.items() if k != "servers"} == {k: v for k, v in before.items() if k != "servers"}
+    assert {k: v for k, v in after["servers"].items() if k != "communitycad"} == before.get("servers", {})
+    uninstall(host, ["vscode"])
+    assert "communitycad" not in read_config(f).get("servers", {})
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        '{\n  "servers": {}\n}\n',
+        '{\n  "servers": {\n    "x": {"command": "y"}\n  }\n}\n',
+        '{\n  "servers": {\n    "x": {"command": "y"} // note\n  }\n}\n',
+        '{\n  "servers": {\n    "x": {"command": "y"}, // note\n  },\n}\n',
+        '{"servers": {"x": 1, "y": 2}, "z": 3}',
+    ],
+)
+def test_install_then_uninstall_gives_back_the_same_bytes(tmp_path, text):
+    host = make_host(tmp_path, "Linux")
+    f = all_app_dirs(host)["vscode"] / "mcp.json"
+    f.write_text(text, encoding="utf-8")
+    install(host, Launch.for_host(host), ["vscode"])
+    assert "// note" not in text or "// note" in f.read_text(encoding="utf-8")
+    uninstall(host, ["vscode"])
+    assert f.read_text(encoding="utf-8") == text
+
+
+def test_opencode_jsonc_and_user_choices(tmp_path, settings):
+    host = make_host(tmp_path, "Windows")  # OpenCode uses ~/.config on every OS
+    d = all_app_dirs(host)["opencode"]
+    jsonc = d / "opencode.jsonc"
+    jsonc.write_text('{\n  "$schema": "https://opencode.ai/config.json",\n  // models\n  "model": "x"\n}\n', encoding="utf-8")
+    [r] = install(host, Launch.for_host(host), ["opencode"])
+    assert r.path == jsonc and not (d / "opencode.json").exists()
+    assert "// models" in jsonc.read_text(encoding="utf-8")
+    # The user turned it off and added env: an update keeps both.
+    data = read_config(jsonc)
+    entry = {"type": "local", "command": ["old-uvx", "communitycad-mcp"], "enabled": False, "environment": {"A": "1"}}
+    jsonc.write_text(json.dumps({**data, "mcp": {"communitycad": entry}}), encoding="utf-8")
+    [r] = install(host, Launch.for_host(host), ["opencode"])
+    assert r.status == "updated"
+    assert read_config(jsonc)["mcp"]["communitycad"] == {**entry, "command": ["uvx", "communitycad-mcp"]}
+    [r] = install(host, Launch.for_host(host), ["opencode"])
+    assert r.status == "unchanged"
+    # doctor says it's turned off.
+    out = io.StringIO()
+    cmd_doctor(parser().parse_args(["doctor"]), host, out, settings, httpx.MockTransport(lambda req: httpx.Response(200, json={})))
+    assert "OpenCode: set up, but turned off" in out.getvalue()
+
+
+def test_xdg_config_home_and_codex_home(tmp_path):
+    host = make_host(tmp_path, "Linux")
+    host.env = {"XDG_CONFIG_HOME": str(tmp_path / "xdg"), "CODEX_HOME": str(tmp_path / "codex")}
+    for d in ("xdg/opencode", "xdg/zed", "codex"):
+        (tmp_path / d).mkdir(parents=True)
+    results = {r.app: r for r in install(host, Launch.for_host(host)) if r.status == "added"}
+    assert results["OpenCode"].path == tmp_path / "xdg" / "opencode" / "opencode.json"
+    assert results["Zed"].path == tmp_path / "xdg" / "zed" / "settings.json"
+    assert results["Codex"].path == tmp_path / "codex" / "config.toml"
+
+
+def test_detection_runs_no_programs(tmp_path):
+    calls: list = []
+    host = make_host(tmp_path, "Linux", {"uvx": "/bin/uvx", "claude": "/bin/claude", "codex": "/bin/codex"}, calls)
+    results = install(host, Launch.for_host(host))
+    assert {r.status for r in results} == {"not_found"} and calls == []
+
+
+CODEX = """# my codex settings
+model = "gpt-5"
+
+[mcp_servers.other]
+command = "o" # mine
+args = ["x"]
+"""
+
+
+@pytest.mark.parametrize("no_tomllib", [False, True])
+def test_codex_toml(tmp_path, monkeypatch, no_tomllib):
+    from communitycad_mcp import configfiles
+
+    if no_tomllib:  # Python 3.10 has no tomllib: the edits must not depend on it
+        monkeypatch.setattr(configfiles, "_toml", None)
+    host = make_host(tmp_path, "Darwin")
+    f = all_app_dirs(host)["codex"] / "config.toml"
+    f.write_text(CODEX, encoding="utf-8")
+    [r] = install(host, Launch.for_host(host), ["codex"])
+    assert r.status == "added"
+    assert f.read_text(encoding="utf-8") == CODEX + '\n[mcp_servers.communitycad]\ncommand = "uvx"\nargs = ["communitycad-mcp"]\n'
+    assert [x.status for x in install(host, Launch.for_host(host), ["codex"])] == ["unchanged"]
+
+    # A stale command is updated in place; the user's extra keys and env table stay.
+    f.write_text(
+        CODEX + '\n[mcp_servers.communitycad]\ncommand = "/old/uvx"  \nargs = ["communitycad-mcp"]\nstartup_timeout_sec = 30\n'
+        "\n[mcp_servers.communitycad.env]\nA = \"1\"\n\n[profiles.x]\nmodel = \"y\"\n",
+        encoding="utf-8",
+    )
+    [r] = install(host, Launch.for_host(host), ["codex"])
+    assert r.status == "updated"
+    text = f.read_text(encoding="utf-8")
+    assert 'command = "uvx"\n' in text and "startup_timeout_sec = 30" in text and 'A = "1"' in text
+    if not no_tomllib:
+        tomllib = pytest.importorskip("tomllib")
+        data = tomllib.loads(text)
+        assert data["mcp_servers"]["communitycad"]["env"] == {"A": "1"} and data["profiles"] == {"x": {"model": "y"}}
+
+    [r] = uninstall(host, ["codex"])
+    assert r.status == "removed"
+    assert f.read_text(encoding="utf-8") == CODEX + '\n[profiles.x]\nmodel = "y"\n'
+
+
+def test_codex_inline_entry_is_left_alone(tmp_path):
+    host = make_host(tmp_path, "Linux")
+    f = all_app_dirs(host)["codex"] / "config.toml"
+    text = 'mcp_servers.communitycad = { command = "x", args = [] }\n'
+    f.write_text(text, encoding="utf-8")
+    [r] = install(host, Launch.for_host(host), ["codex"])
+    assert r.status == "error" and "[mcp_servers.communitycad]" in r.detail
+    assert f.read_text(encoding="utf-8") == text
+
+
+def test_copilot_keeps_narrowed_tools(tmp_path):
+    host = make_host(tmp_path, "Windows")
+    f = all_app_dirs(host)["copilot"] / "mcp-config.json"
+    f.write_text(json.dumps({"mcpServers": {"communitycad": {"type": "local", "command": "old", "args": [], "tools": ["search_models"]}}}))
+    [r] = install(host, Launch.for_host(host), ["copilot"])
+    assert r.status == "updated"
+    assert read_config(f)["mcpServers"]["communitycad"] == {"type": "local", **ENTRY, "tools": ["search_models"]}
 
 
 def test_bom_and_non_ascii_survive(tmp_path):
@@ -151,7 +361,7 @@ def test_windows_store_claude_desktop(tmp_path):
 def test_unreadable_config_is_left_alone(tmp_path):
     host = make_host(tmp_path, "Linux")
     d = all_app_dirs(host)["vscode"]
-    text = '{\n  // my servers\n  "servers": {},\n}\n'
+    text = '{\n  // my servers\n  "servers": {,\n}\n'
     (d / "mcp.json").write_text(text, encoding="utf-8")
     [r] = install(host, Launch.for_host(host), ["vscode"])
     assert r.status == "error" and "by hand" in r.detail
@@ -229,7 +439,10 @@ def test_app_names():
     assert app_key("claude") == "claude-code"
     with pytest.raises(ValueError):
         app_key("notepad")
-    assert set(FILE_APPS) == {"claude-desktop", "cursor", "vscode", "windsurf"}
+    assert app_key("OpenCode") == "opencode" and app_key("open-code") == "opencode"
+    assert app_key("GitHub Copilot") == "copilot" and app_key("gemini-cli") == "gemini"
+    assert app_key("Codex") == "codex" and app_key("zed") == "zed"
+    assert set(FILE_APPS) == set(LABELS)
 
 
 # -- the commands -----------------------------------------------------------------

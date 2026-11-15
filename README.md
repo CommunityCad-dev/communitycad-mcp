@@ -26,11 +26,28 @@ You need [uv](https://docs.astral.sh/uv/getting-started/installation/) (it fetch
 uvx communitycad-mcp install
 ```
 
-It finds Claude Code, Claude Desktop, Cursor, VS Code and Windsurf on Windows, macOS and Linux and adds CommunityCAD to each one, leaving your other servers alone and backing up every file it changes (`<file>.bak-<date>`). Restart the app, then ask: *find me an M8 screw with a STEP file*.
+It finds the AI apps below on Windows, macOS and Linux and adds CommunityCAD to each one. An app counts as found when its config folder exists; nothing is started to check. Only the `communitycad` entry changes: your other servers, settings and comments stay as they are, and every file it changes is backed up first (`<file>.bak-<date>`). Running it again changes nothing. Restart the app, then ask: *find me an M8 screw with a STEP file*.
+
+### Apps
+
+| App | `--app` | Config file it edits | Entry |
+|---|---|---|---|
+| Claude Code | `claude-code` | `~/.claude.json` (through `claude mcp add --scope user` when `claude` is on the PATH) | `mcpServers`, `"type": "stdio"` |
+| Claude Desktop | `claude-desktop` | `claude_desktop_config.json` in `%APPDATA%\Claude` (and the Microsoft Store copy), `~/Library/Application Support/Claude`, `~/.config/Claude` | `mcpServers` |
+| OpenCode | `opencode` | `~/.config/opencode/opencode.json` (or `opencode.jsonc` if that's the one you have) on every OS; `$XDG_CONFIG_HOME` if set | `mcp`, `"type": "local"`, `"command": [...]` |
+| Codex | `codex` | `~/.codex/config.toml` (`$CODEX_HOME` if set) | `[mcp_servers.communitycad]` |
+| Gemini CLI | `gemini` | `~/.gemini/settings.json` | `mcpServers` |
+| GitHub Copilot CLI | `copilot` | `~/.copilot/mcp-config.json` | `mcpServers`, `"type": "local"`, `"tools": ["*"]` |
+| Cursor | `cursor` | `~/.cursor/mcp.json` | `mcpServers` |
+| VS Code (Copilot Chat) | `vscode` | user `mcp.json` in `%APPDATA%\Code\User`, `~/Library/Application Support/Code/User`, `~/.config/Code/User` | `servers`, `"type": "stdio"` |
+| Windsurf | `windsurf` | `~/.codeium/windsurf/mcp_config.json` | `mcpServers` |
+| Zed | `zed` | `settings.json` in `%APPDATA%\Zed`, or `~/.config/zed` on macOS and Linux | `context_servers` |
+
+Claude Desktop and Zed get the full path to `uvx`, because apps started from a desktop launcher may not see your shell's PATH. If you turned the server off in an app (OpenCode's `"enabled": false`) or narrowed Copilot's `tools`, `install` keeps that and `doctor` tells you it's off.
 
 | Command | What it does |
 |---|---|
-| `uvx communitycad-mcp install` | Set up every AI app it finds. `--app cursor` (or `claude-code`, `claude-desktop`, `vscode`, `windsurf`) sets up just that one, even if it wasn't found. `--dry-run` shows what would change. |
+| `uvx communitycad-mcp install` | Set up every AI app it finds. `--app opencode` (or any name in the `--app` column) sets up just that one, even if it wasn't found. `--dry-run` shows what would change. |
 | `uvx communitycad-mcp doctor` | Checks uv, the connection to CommunityCAD, your sign-in and which apps are set up, and says how to fix each problem. |
 | `uvx communitycad-mcp uninstall` | Removes only the CommunityCAD entry from each app. |
 
@@ -70,9 +87,52 @@ claude mcp add --scope user communitycad -- uvx communitycad-mcp
 
 **VS Code** (user `mcp.json`): the same entry under `"servers"`, with `"type": "stdio"`.
 
+**Gemini CLI** (`~/.gemini/settings.json`): the same `mcpServers` entry. **GitHub Copilot CLI** (`~/.copilot/mcp-config.json`): the same, plus `"type": "local"` and `"tools": ["*"]`. **Zed** (`settings.json`): the same entry under `"context_servers"`.
+
+**OpenCode** (`~/.config/opencode/opencode.json`):
+
+```json
+{
+  "mcp": {
+    "communitycad": {
+      "type": "local",
+      "command": ["uvx", "communitycad-mcp"],
+      "enabled": true
+    }
+  }
+}
+```
+
+**Codex** (`~/.codex/config.toml`):
+
+```toml
+[mcp_servers.communitycad]
+command = "uvx"
+args = ["communitycad-mcp"]
+```
+
 Other MCP clients: run `uvx communitycad-mcp` as a stdio server. To run an unreleased checkout instead, run `uv run --directory /path/to/communitycad-mcp communitycad-mcp install --from-path /path/to/communitycad-mcp`, or replace `uvx communitycad-mcp` with `uv run --directory /path/to/communitycad-mcp communitycad-mcp`.
 
 </details>
+
+### Use it inside SolidCraft
+
+[SolidCraft](https://github.com/tangency-labs/solidcraft)'s in-app chat runs your own coding agent and gives it SolidCraft's tools. The agents checked below also load the MCP servers from their own config, so CommunityCAD set up for the agent is there in SolidCraft's chat too, next to SolidCraft's tools:
+
+1. Set up your agent for SolidCraft's chat as SolidCraft's docs describe.
+2. Run `uvx communitycad-mcp install` (or `--app claude-code`, `--app codex`, `--app opencode`, `--app gemini` for just that agent).
+3. Start a new chat in SolidCraft, so the agent is started again and reads its config.
+4. Ask: *find me an M8 screw with a STEP file*.
+
+| Agent in SolidCraft's chat | Loads CommunityCAD from its own config |
+|---|---|
+| Codex (`codex-acp`) | Yes: it reads your Codex config and adds SolidCraft's server to it |
+| OpenCode (`opencode acp`) | Yes: OpenCode's ACP docs say sessions use your config, MCP servers included |
+| Gemini CLI | Yes: it starts from the servers in your settings and adds SolidCraft's |
+| Claude Code (`claude-agent-acp`) | Expected: the adapter loads your user, project and local settings and adds SolidCraft's server to them; not yet tested end to end |
+| Others (Copilot, Qwen, goose, Grok, Mistral Vibe, Antigravity) | Not checked yet |
+
+CommunityCAD's tools are asked about through your agent's usual permission prompts. Downloads count against your limit as anywhere else; files are saved to your download folder (see [Settings](#settings)) and the agent is told where.
 
 **Check it with MCP Inspector:**
 

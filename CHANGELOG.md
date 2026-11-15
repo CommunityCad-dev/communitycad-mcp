@@ -4,6 +4,17 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Added
+
+- `install`, `uninstall` and `doctor` now also cover OpenCode, Codex, Gemini CLI, GitHub Copilot CLI and Zed, the same set of apps SolidCraft's agent setup configures. Codex's `config.toml` is edited in place.
+- README: an Apps table, and how to use CommunityCAD inside SolidCraft's in-app chat.
+
+### Changed
+
+- Config files may contain comments and trailing commas (JSONC). Only the `communitycad` entry is changed; every other byte stays as it was.
+- An app counts as installed when its config folder exists. Having `claude` on the PATH is no longer enough for Claude Code.
+- `install` keeps settings you changed in the entry, such as OpenCode's `enabled` or Copilot's `tools`. `doctor` reports a server that's turned off.
+
 ## [0.1.0] - 2026-11-15
 
 First public release.

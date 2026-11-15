@@ -13,7 +13,6 @@ from . import __version__
 from .config import Settings
 from .installer import (
     APP_KEYS,
-    APP_LABELS,
     Host,
     Launch,
     Result,
@@ -89,8 +88,7 @@ def cmd_install(args: argparse.Namespace, host: Host, out: TextIO) -> int:
         print(manual_snippet(launch), file=out)
         return 1
     if errors:
-        print("For the apps marked [problem], add this entry to their MCP settings by hand:", file=out)
-        print(manual_snippet(launch), file=out)
+        print("For the apps marked [problem], add the entry shown under each one by hand.", file=out)
         print(file=out)
     if ready and not args.dry_run:
         print("Next:", file=out)
@@ -198,14 +196,15 @@ def cmd_doctor(
         if not s.detected:
             print(f"  [skipped]  {s.label}: not found on this computer", file=out)
         elif s.problem:
-            bad(f"{s.label}: {s.problem}", "fix the file's JSON, then run communitycad-mcp install")
+            bad(f"{s.label}: {s.problem}", "fix the file, then run communitycad-mcp install")
         elif s.entry is None:
-            key = next((k for k, lbl in APP_LABELS.items() if s.label.startswith(lbl)), "")
             print(f"  [not set]  {s.label}: CommunityCAD isn't set up here", file=out)
-            print(f"              To add it: communitycad-mcp install --app {key}", file=out)
+            print(f"              To add it: communitycad-mcp install --app {s.key}", file=out)
         else:
-            command = s.entry.get("command") if isinstance(s.entry, dict) else None
-            if command and not Path(command).is_absolute() and not host.which(command):
+            command = s.command
+            if s.entry.get("enabled") is False or s.entry.get("disabled") is True:
+                bad(f"{s.label}: set up, but turned off ({s.path})", "turn the CommunityCAD server on in the app's settings")
+            elif command and not Path(command).is_absolute() and not host.which(command):
                 bad(f"{s.label}: set up, but its command '{command}' isn't on your PATH",
                     f"install uv ({UV_URL}), or run communitycad-mcp install again")
             elif command and Path(command).is_absolute() and not Path(command).exists():
